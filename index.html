@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <!-- begin PWA head block: verbatim from CD-7 §8.3 -->
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="PTracker">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>PTracker</title>
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+  <!-- end PWA head block -->
+  <!-- M2: <link rel="stylesheet" href="css/charts.css"> -->
+</head>
+<body>
+  <div id="boot" class="boot" aria-live="polite">Loading…</div>
+
+  <section id="fatal" class="fatal" hidden aria-labelledby="fatal-title">
+    <h1 id="fatal-title">PTracker can't start</h1>
+    <p data-out="message"></p>
+    <button type="button" data-action="fatal.reload">Reload</button>
+  </section>
+
+  <main id="app" hidden>
+    <section id="page-entry" data-page="entry" hidden aria-labelledby="entry-title">
+      <header class="page-header">
+        <h1 id="entry-title" tabindex="-1">Entry</h1>
+      </header>
+      <div class="card">
+        <p class="placeholder" data-out="placeholder.date"></p>
+      </div>
+    </section>
+    <section id="page-history" data-page="history" hidden aria-labelledby="history-title">
+      <header class="page-header">
+        <h1 id="history-title" tabindex="-1">History</h1>
+      </header>
+      <div class="card">
+        <p class="placeholder" data-out="placeholder.text"></p>
+      </div>
+    </section>
+    <section id="page-baseline" data-page="baseline" hidden aria-labelledby="baseline-title">
+      <header class="page-header">
+        <h1 id="baseline-title" tabindex="-1">Baseline</h1>
+      </header>
+      <div class="card">
+        <p class="placeholder" data-out="placeholder.text"></p>
+      </div>
+    </section>
+    <section id="page-charts" data-page="charts" hidden></section>   <!-- M2, inner markup CD-8 -->
+    <section id="page-import" data-page="import" hidden></section>   <!-- M2, inner markup CD-6 -->
+    <section id="page-backup" data-page="backup" hidden></section>   <!-- M2, inner markup CD-6 -->
+  </main>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="toasts-alert" class="toasts" role="alert"></div>
+
+  <nav id="tabbar" class="tabbar" aria-label="Pages" hidden>
+    <a href="#entry" data-tab="entry">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 7l4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Entry</span>
+    </a>
+    <a href="#history" data-tab="history">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 6h12M8 12h12M8 18h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="6" r="1.5" fill="currentColor"/><circle cx="4" cy="12" r="1.5" fill="currentColor"/><circle cx="4" cy="18" r="1.5" fill="currentColor"/></svg>
+      <span>History</span>
+    </a>
+    <!-- M2: <a href="#charts" data-tab="charts">…Charts</a> -->
+    <!-- M2: <a href="#backup" data-tab="data">…Data</a> -->
+    <a href="#baseline" data-tab="baseline">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Baseline</span>
+    </a>
+  </nav>
+
+  <noscript><p>PTracker needs JavaScript.</p></noscript>
+</body>
+</html>
