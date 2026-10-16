@@ -274,15 +274,28 @@ main {
 .tag-code {
   font-weight: 600;
   min-width: 3.5em;
+  flex-shrink: 0;
 }
 
+/* The label is the only part that shrinks; long words break so the Edit button stays visible (FR-TAG-07). */
 .tag-label {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tag-glyph,
+.tag-edit {
+  flex-shrink: 0;
 }
 
 .tag-kind {
+  display: grid;
+  flex-shrink: 0;
+  justify-items: end;
   color: var(--c-muted);
   font-size: 0.875rem;
+  line-height: 1.2;
 }
 
 .kind-treatment .tag-glyph {
@@ -300,8 +313,8 @@ main {
 .tag-row .tag-code {
   border: 1px solid var(--c-tag-event);
   border-radius: var(--radius);
-  padding: 0 var(--space-2);
-  min-width: 3.5em;
+  padding: 0 var(--space-1);
+  min-width: 3em;
   text-align: center;
 }
 
@@ -319,7 +332,7 @@ main {
 
 .tag-edit {
   margin-left: auto;
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-2);
 }
 
 .panel-button {

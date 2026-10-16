@@ -85,7 +85,10 @@ export function createBaselinePage(deps) {
       el('span', { class: 'tag-code', text: t.code }),
       el('span', { class: 'tag-glyph', attrs: { 'aria-hidden': 'true' }, text: t.glyph }),
       el('span', { class: 'tag-label', text: t.label }),
-      el('span', { class: 'tag-kind', text: t.status }),
+      el('span', { class: 'tag-kind' },                                 // short kind; full text for VoiceOver (FR-TAG-07)
+        el('span', { attrs: { 'aria-hidden': 'true' }, text: t.kindShort }),
+        t.retiredText ? el('span', { class: 'tag-retired', attrs: { 'aria-hidden': 'true' }, text: t.retiredText }) : null,
+        el('span', { class: 'sr-only', text: t.status })),
       el('button', { class: 'tag-edit', text: 'Edit', attrs: { type: 'button', 'aria-label': `Edit ${t.code}, ${t.label}` },
         dataset: { action: 'tag.edit', code: t.code } })), { sigOf: (t) => JSON.stringify(t) });
     paint(root, vm);

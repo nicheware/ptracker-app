@@ -88,3 +88,16 @@ export function kindLabel(kind) {
   const k = String(kind ?? '');
   return k === '' ? '' : k[0].toUpperCase() + k.slice(1);
 }
+
+/** Short tag-kind names for tight rows (FR-TAG-07). */
+const KIND_SHORT = Object.freeze({ treatment: 'Treat', positive: 'Pos', event: 'Event' });
+
+/**
+ * Short display name of a tag kind: 'treatment' → 'Treat', 'positive' → 'Pos', 'event' → 'Event'; other kinds fall
+ * back to kindLabel.
+ * @param {string} kind
+ * @returns {string}
+ */
+export function kindShortLabel(kind) {
+  return Object.hasOwn(KIND_SHORT, kind) ? KIND_SHORT[/** @type {keyof typeof KIND_SHORT} */ (kind)] : kindLabel(kind);
+}

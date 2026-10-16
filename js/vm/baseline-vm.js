@@ -3,7 +3,7 @@
 // panel (CD-4 §10.3).
 
 import { weekdayName } from '../core/dates.js';
-import { formatValue, kindLabel, toInputText } from '../core/format.js';
+import { formatValue, kindLabel, kindShortLabel, toInputText } from '../core/format.js';
 
 /** @typedef {import('../core/types.js').WeekdayRow} WeekdayRow */
 /** @typedef {import('../core/types.js').WeekdayCode} WeekdayCode */
@@ -21,8 +21,9 @@ import { formatValue, kindLabel, toInputText } from '../core/format.js';
  *           cells keyed by slug(FieldId), e.g. 'weekday_Mon_baseline' (CC-23 field ids)
  * @property {string} categoryTitle        `${category.name} settings`
  * @property {Object<string, CellVM & { label: string }>} settings   keyed by slug(FieldId), in descriptor order
- * @property {Array<{ code: string, label: string, kind: string, kindLabel: string, glyph: string, retired: boolean,
- *                   status: string, canUp: boolean, canDown: boolean }>} tags
+ * @property {Array<{ code: string, label: string, kind: string, kindLabel: string, kindShort: string, glyph: string,
+ *                   retired: boolean, retiredText: string, status: string, canUp: boolean, canDown: boolean }>} tags
+ *           kindShort and retiredText are shown; status is the full text for VoiceOver (FR-TAG-07)
  * @property {{ title: string, body: string, confirmLabel: string }} restore   restore-defaults dialog (FR-BAS-08)
  * @property {{ name: string, version: string, storage: string, storageWarn: boolean, integrity: string,
  *             quarantineWarn: boolean }} about
@@ -176,8 +177,10 @@ export function baselineViewModel({ weekdays, settings, tags, category, appName,
     label: t.label,
     kind: t.kind,
     kindLabel: kindLabel(t.kind),
+    kindShort: kindShortLabel(t.kind),
     glyph: KIND_GLYPHS[t.kind] ?? '',
     retired: t.retired,
+    retiredText: t.retired ? 'Retired' : '',
     status: `${kindLabel(t.kind)}${t.retired ? ' (retired)' : ''}`,
     canUp: !t.retired && i > 0,
     canDown: !t.retired && i < activeCount - 1,
