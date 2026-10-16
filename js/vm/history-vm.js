@@ -17,7 +17,8 @@ import { addDays, daysBetween, formatShortDate, todayIso } from '../core/dates.j
 /**
  * @typedef {Object} HistoryColumnVM
  * @property {string} id
- * @property {string} label
+ * @property {string} label           full name (screen readers, tooltip)
+ * @property {string} heading         shown heading: shortLabel ?? label (CC-21 rev 1.5)
  * @property {boolean} pinned
  * @property {boolean} defaultHidden   hidden while "Show all columns" is off (the cells carry data-default-hidden)
  * @property {boolean} hidden          !pinned && defaultHidden && !showAll (FR-HIS-09/10)
@@ -70,7 +71,7 @@ export const SHOW_ALL_LABEL = 'Show all columns';
 export function historyColumnVms(category, showAll) {
   return category.historyColumns.map((c) => {
     const defaultHidden = !c.pinned && !!c.defaultHidden;
-    return { id: c.id, label: c.label, pinned: !!c.pinned, defaultHidden, hidden: defaultHidden && !showAll,
+    return { id: c.id, label: c.label, heading: c.shortLabel ?? c.label, pinned: !!c.pinned, defaultHidden, hidden: defaultHidden && !showAll,
       align: NUMERIC.has(c.format) ? 'num' : 'text' };
   });
 }

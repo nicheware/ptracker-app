@@ -75,8 +75,10 @@ export function createHistoryPage(deps) {
   function buildHead(columns) {
     if (!thead) return;
     const classes = columnClasses(columns);
-    thead.replaceChildren(el('tr', {}, ...columns.map((c, i) =>
-      el('th', { class: classes[i], text: c.label, attrs: { scope: 'col', ...hiddenAttr(c) } }))));
+    thead.replaceChildren(el('tr', {}, ...columns.map((c, i) => (c.heading === c.label
+      ? el('th', { class: classes[i], text: c.label, attrs: { scope: 'col', ...hiddenAttr(c) } })
+      : el('th', { class: classes[i], attrs: { scope: 'col', title: c.label, ...hiddenAttr(c) } },   // short heading, full name read
+        el('span', { attrs: { 'aria-hidden': 'true' }, text: c.heading }), el('span', { class: 'sr-only', text: c.label }))))));
   }
 
   /**

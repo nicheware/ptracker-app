@@ -902,7 +902,7 @@ button:disabled {
 }
 
 table.history {
-  --col-day-w: 2.75rem;
+  --col-day-w: calc(2.2em + var(--space-2));   /* "Wed" plus the left padding, in the table's own em */
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -950,6 +950,8 @@ table.history thead th {
 
 table.history .num {
   text-align: right;
+  padding-left: 2px;                /* numbers are right-aligned: the tight gap keeps 3-figure % in 375 pt */
+  padding-right: 2px;
 }
 
 table.history .pin {
@@ -966,6 +968,7 @@ table.history .pin-0 {
 
 table.history .pin-1 {
   left: var(--col-day-w);
+  padding-left: var(--space-1);
   border-right: 1px solid var(--c-border);
 }
 
@@ -1021,7 +1024,7 @@ table.history tr.is-off > td {
 table.history tr.is-incomplete > td:not(.pin) {
   color: var(--c-muted);
   font-style: italic;
-  font-size: 0.8125rem;             /* "Incomplete" must not widen the Average column */
+  font-size: 0.75rem;               /* "Incomplete" must not widen the Average column */
 }
 
 table.history tr.gap-row > td {

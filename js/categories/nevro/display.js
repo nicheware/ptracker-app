@@ -107,8 +107,8 @@ export const historyColumns = [
   F.baseline,
   { id: 'npl', label: 'Nevro pain level', get: (ctx) => numOrNull(nd(ctx).npl), format: 'dec1', defaultHidden: true,
     tone: (ctx) => (nplOutOfRange(numOrNull(nd(ctx).npl)) ? 'warning' : null) },
-  { id: 'pct', label: 'Nevro Percent', get: (ctx) => numOrNull(nd(ctx).pct), format: 'pct1Signed' },
-  { id: 'rollingAvg', label: 'Rolling avg', get: (ctx) => numOrNull(nh(ctx).rollingAvg), format: 'pct1Signed',
+  { id: 'pct', label: 'Nevro Percent', shortLabel: 'Nevro %', get: (ctx) => numOrNull(nd(ctx).pct), format: 'pct1Signed' },
+  { id: 'rollingAvg', label: 'Rolling avg', shortLabel: 'Roll avg', get: (ctx) => numOrNull(nh(ctx).rollingAvg), format: 'pct1Signed',
     note: (ctx) => (rollingPartial(ctx) ? 'partial' : null), tone: (ctx) => (rollingPartial(ctx) ? 'muted' : null) },
   programColumn,
 ];

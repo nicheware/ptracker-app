@@ -193,6 +193,7 @@
  * @property {string} format
  * @property {boolean} [pinned]
  * @property {boolean} [defaultHidden]  hidden until "Show all columns" (FR-HIS-09/10, CC-21 rev 1.4)
+ * @property {string} [shortLabel]      History heading when the label is too wide for 375 pt (CC-21 rev 1.5)
  * @property {(ctx: ColumnContext) => Tone|null} [tone]
  * @property {string} [blankText]
  * @property {(ctx: ColumnContext) => string|null} [note]

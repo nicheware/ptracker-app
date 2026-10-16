@@ -12,8 +12,9 @@ import { weekdayOf } from './dates.js';
  * One framework column: CSV header and token, History token, and the shared raw-value getter. `get` reads
  * ctx.derived, never record.derived (CC-16). `hidden`: the History block is `defaultHidden`; only Day, Date
  * (pinned) and Average are default-visible (FR-HIS-09, CC-21 rev 1.4).
+ * `short`: the History heading when the header is too wide for 375 pt (CC-21 rev 1.5).
  * @type {Array<{ key: string, header: string, csv: string, history: string, pinned?: boolean, hidden?: boolean,
- *                get: (ctx: ColumnContext) => number|string|null }>}
+ *                short?: string, get: (ctx: ColumnContext) => number|string|null }>}
  */
 const SPECS = [
   { key: 'day', header: 'Day', csv: 'weekday', history: 'weekday', pinned: true, get: (ctx) => weekdayOf(ctx.record.date) },
@@ -22,7 +23,7 @@ const SPECS = [
   { key: 'afternoon', header: 'Afternoon', csv: 'int', history: 'int', hidden: true, get: (ctx) => ctx.record.scores?.afternoon ?? null },
   { key: 'evening', header: 'Evening', csv: 'int', history: 'int', hidden: true, get: (ctx) => ctx.record.scores?.evening ?? null },
   { key: 'other', header: 'Other', csv: 'text', history: 'text', hidden: true, get: (ctx) => (ctx.record.other ?? []).join(' ') },
-  { key: 'average', header: 'Average', csv: 'dec1', history: 'dec1', get: (ctx) => ctx.derived.average },
+  { key: 'average', header: 'Average', csv: 'dec1', history: 'dec1', short: 'Avg', get: (ctx) => ctx.derived.average },
   { key: 'low', header: 'Low', csv: 'int', history: 'int', hidden: true, get: (ctx) => ctx.derived.low },
   { key: 'high', header: 'High', csv: 'int', history: 'int', hidden: true, get: (ctx) => ctx.derived.high },
   { key: 'comment', header: 'Comment', csv: 'text', history: 'text', hidden: true, get: (ctx) => ctx.record.comment ?? '' },
@@ -36,7 +37,7 @@ export const FRAMEWORK_CSV = Object.freeze(Object.fromEntries(SPECS.map((s) =>
 /** Same ids as FRAMEWORK_CSV, label = header, display tokens (CD-6 §5.1). @type {Readonly<Object<string, Readonly<ColumnDescriptor>>>} */
 export const FRAMEWORK_HISTORY = Object.freeze(Object.fromEntries(SPECS.map((s) =>
   [s.key, Object.freeze({ id: s.key, label: s.header, get: s.get, format: s.history, ...(s.pinned ? { pinned: true } : {}),
-    ...(s.hidden ? { defaultHidden: true } : {}) })])));
+    ...(s.hidden ? { defaultHidden: true } : {}), ...(s.short ? { shortLabel: s.short } : {}) })])));
 
 /** @type {Readonly<{ average: Readonly<MetricDescriptor> }>} */
 export const FRAMEWORK_METRICS = Object.freeze({

@@ -220,6 +220,9 @@ export function assertCategory(c) {
   if (Array.isArray(cat.historyColumns)) {
     cat.historyColumns.forEach((c, i) => {
       if (c?.pinned && c?.defaultHidden) problems.push(`historyColumns[${i}]: a pinned column cannot be defaultHidden`);
+      if (c?.shortLabel !== undefined && (typeof c.shortLabel !== 'string' || c.shortLabel === '')) {
+        problems.push(`historyColumns[${i}]: invalid shortLabel`);
+      }
     });
   }
   checkDescriptors('csv.standard', csv?.standard, 'header', CSV_TOKENS);
