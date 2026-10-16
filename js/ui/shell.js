@@ -8,11 +8,10 @@ import { NOTICES, ACTIONS } from './messages.js';
 import { createEntryPage } from './pages/entry.js';
 import { createHistoryPage } from './pages/history.js';
 import { createBaselinePage } from './pages/baseline.js';
-import { shellViewModel } from '../vm/shell-vm.js';
+import { shellViewModel, resumeState } from '../vm/shell-vm.js';
 import { EVENTS } from '../core/events.js';
 import { todayIso } from '../core/dates.js';
 
-// TODO(IT-03): day rollover on resume.
 // TODO(IT-05): boot:report emission and the db:versionchange toast.
 // TODO(IT-08): flush points (pagehide, visibilitychange → hidden) and the save-error toast.
 
@@ -51,17 +50,26 @@ export function startShell(deps) {
   bus.on(EVENTS.UI_TOAST, (toast) => toaster.show(toast));
   bus.on(EVENTS.SW_UPDATE_READY, showUpdateToast);
 
+  /** @type {ReturnType<typeof createRouter>|null} */
+  let router = null;
+  /** Controllers navigate through the router, which is created after them (CD-4 §8.4). */
+  const pageDeps = {
+    ...deps,
+    /** @type {(route: {page: string, date?: string|null}, opts?: {replace?: boolean}) => void} */
+    navigate: (route, opts) => router?.go(route, opts),
+  };
+
   /** @type {Object<string, import('./router.js').PageEntry>} */
   const pages = {};
   for (const [key, create] of Object.entries(PAGES)) {
     const section = /** @type {HTMLElement} */ (doc.getElementById(`page-${key}`));
-    const controller = create(deps);
+    const controller = create(pageDeps);
     controller.init(section);
     pages[key] = { controller, section };
   }
 
   let revealed = false;
-  const router = createRouter({
+  router = createRouter({
     pages,
     clock,
     win,
@@ -83,9 +91,9 @@ export function startShell(deps) {
   // Resume (CD-4 §5.6): visible again, or restored from the back/forward cache.
   let lastToday = todayIso(clock.now());
   function resume() {
-    const today = todayIso(clock.now());
-    bus.emit(EVENTS.APP_RESUME, { today, dayChanged: today !== lastToday });
-    lastToday = today;
+    const state = resumeState(lastToday, clock.now());
+    lastToday = state.today;
+    bus.emit(EVENTS.APP_RESUME, state);           // Entry handles the day rollover (D4-09)
   }
   doc.addEventListener('visibilitychange', () => {
     if (doc.visibilityState === 'visible') resume();

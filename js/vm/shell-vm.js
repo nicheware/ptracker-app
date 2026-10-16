@@ -1,7 +1,7 @@
 // @ts-check
 // Shell view-model: pure route parsing and formatting, and the tab-bar state (CD-4 §5.3, §11).
 
-import { isIsoDate } from '../core/dates.js';
+import { isIsoDate, todayIso } from '../core/dates.js';
 
 /** @typedef {import('../core/types.js').IsoDate} IsoDate */
 /** @typedef {{ page: string, date: IsoDate|null, redirect: boolean }} Route */
@@ -59,4 +59,15 @@ export function formatRoute(route, today) {
 export function shellViewModel({ route, tabs }) {
   const activeTab = Object.hasOwn(TAB_OF, route.page) ? TAB_OF[route.page] : route.page;
   return { activeTab, tabs: tabs.map((key) => ({ key, current: key === activeTab })) };
+}
+
+/**
+ * The `app:resume` payload (CC-25, CD-4 §5.6): today's local date and whether it moved since `lastToday`.
+ * @param {IsoDate} lastToday  today at boot or at the previous resume
+ * @param {Date} now           clock.now()
+ * @returns {{ today: IsoDate, dayChanged: boolean }}
+ */
+export function resumeState(lastToday, now) {
+  const today = todayIso(now);
+  return { today, dayChanged: today !== lastToday };
 }
