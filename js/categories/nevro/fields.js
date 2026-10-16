@@ -14,10 +14,11 @@ import { knownPrograms } from './programs.js';
 /**
  * @param {string} key
  * @param {string} label
+ * @param {string} shortLabel   weekday-table heading (NV-SET-05)
  * @returns {FieldDescriptor}
  */
-const thc = (key, label) => ({
-  key, label, type: 'decimal', unit: 'ml', min: 0, maxDp: 2, weekdayDefault: true,
+const thc = (key, label, shortLabel) => ({
+  key, label, shortLabel, type: 'decimal', unit: 'ml', min: 0, maxDp: 2, weekdayDefault: true,
   help: 'Leave blank for none.',
 });
 
@@ -28,12 +29,12 @@ export const settingsFields = [
 ];
 
 /** @type {FieldDescriptor[]} */
-export const weekdayFields = [thc('thcMorning', 'THC morning'), thc('thcAfternoon', 'THC afternoon')];
+export const weekdayFields = [thc('thcMorning', 'THC morning', 'THC m'), thc('thcAfternoon', 'THC afternoon', 'THC a')];
 
 /** @type {FieldDescriptor[]} */
 export const entryFields = [
-  thc('thcMorning', 'THC morning'),
-  thc('thcAfternoon', 'THC afternoon'),
+  thc('thcMorning', 'THC morning', 'THC m'),
+  thc('thcAfternoon', 'THC afternoon', 'THC a'),
   { key: 'programChange', label: 'Changing tonight to', type: 'combo', fixedOptions: [PROGRAM_OFF],
     maxLength: PROGRAM_MAX_LENGTH, placeholder: 'No change', help: 'Takes effect from tomorrow.' },
 ];

@@ -89,15 +89,18 @@ function preciseCell(value, type) {
 }
 
 /**
- * Weekday table columns after Day: Baseline, then the category's weekday fields; the unit goes in the label
- * because the cells are inputs (CD-4 §10.1).
+ * Weekday table columns after Day: Baseline, then the category's weekday fields by their short heading (else
+ * the label) plus the unit, so the table fits a portrait phone (CD-4 §10.1, §10.3, FR-BAS-10).
  * @param {Category} category
  * @returns {Array<{ id: string, label: string }>}
  */
 export function weekdayColumns(category) {
   return [
     { id: 'baseline', label: 'Baseline' },
-    ...category.weekdayFields.map((f) => ({ id: slug(f.key), label: f.unit ? `${f.label} (${f.unit})` : f.label })),
+    ...category.weekdayFields.map((f) => {
+      const heading = f.shortLabel ?? f.label;
+      return { id: slug(f.key), label: f.unit ? `${heading} (${f.unit})` : heading };
+    }),
   ];
 }
 

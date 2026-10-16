@@ -125,6 +125,9 @@ export function assertCategory(c) {
       if (f == null || typeof f.key !== 'string' || f.key === '') problems.push(`${list}[${i}]: missing key`);
       else if (RESERVED_KEYS.has(f.key)) problems.push(`${list}[${i}]: reserved key "${f.key}"`);
       if (typeof f?.label !== 'string' || f.label === '') problems.push(`${list}[${i}]: missing label`);
+      if (f?.shortLabel !== undefined && (typeof f.shortLabel !== 'string' || f.shortLabel === '')) {
+        problems.push(`${list}[${i}]: invalid shortLabel`);
+      }
       if (!FIELD_TYPES.has(f?.type)) problems.push(`${list}[${i}]: unknown type "${f?.type}"`);
     });
     return fields;

@@ -150,6 +150,7 @@
  * @property {number} [maxLength]
  * @property {string} [placeholder]
  * @property {'decimal'|'numeric'|'text'} [inputMode]
+ * @property {string} [shortLabel]   short table heading (CC-21 rev 1.2, FR-BAS-10)
  */
 /**
  * @typedef {Object} MetricDescriptor  entry-screen results (CC-21 rev 1)

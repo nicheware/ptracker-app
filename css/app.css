@@ -222,8 +222,13 @@ main {
 
 .weekday-table {
   width: 100%;
+  table-layout: fixed;              /* columns share the width; inputs never set it (NFR-USE-06) */
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
+}
+
+.weekday-table th:first-child {
+  width: 3em;
 }
 
 .weekday-table th,
@@ -237,6 +242,8 @@ main {
   font-size: 0.8125rem;
   font-weight: 400;
   color: var(--c-muted);
+  white-space: normal;              /* headings may wrap (FR-BAS-10) */
+  vertical-align: bottom;
 }
 
 .weekday-table th:first-child {
@@ -389,12 +396,14 @@ main {
 }
 
 .weekday-table .input {
-  min-width: 4.5em;
+  min-width: 0;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
   text-align: right;
 }
 
 .weekday-table .field-error {
-  max-width: 7em;
+  white-space: normal;
 }
 
 .settings-list .field + .field {
