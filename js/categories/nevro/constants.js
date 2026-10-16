@@ -33,5 +33,5 @@ export const DEFAULT_TAGS = Object.freeze([
   { code: 'Cort', label: 'Cortisone', kind: 'treatment' },
   { code: 'Q', label: 'Quilting', kind: 'positive' },
   { code: 'cold', label: 'Cold/illness', kind: 'event' },
-  { code: 'Colon', label: 'Colon procedure', kind: 'event' },
+  { code: 'Med', label: 'Medical procedure', kind: 'event' },
 ].map((tag) => Object.freeze(/** @type {SeedTag} */ (tag))));
