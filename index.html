@@ -62,9 +62,24 @@
       <header class="page-header">
         <h1 id="baseline-title" tabindex="-1">Baseline</h1>
       </header>
-      <div class="card">
-        <p class="placeholder" data-out="placeholder.text"></p>
-      </div>
+      <section class="panel" aria-labelledby="weekdays-title">
+        <h2 id="weekdays-title" class="panel-title">Weekday baselines</h2>
+        <div class="card table-wrap">
+          <table class="weekday-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="hint">Changes apply to days you create from now on.</p>
+      </section>
+      <section class="panel" aria-labelledby="category-settings-title">
+        <h2 id="category-settings-title" class="panel-title" data-out="categoryTitle"></h2>
+        <dl class="card about settings-list"></dl>
+      </section>
+      <section class="panel" aria-labelledby="tags-title">
+        <h2 id="tags-title" class="panel-title">Tags</h2>
+        <ul class="card tag-list"></ul>
+      </section>
       <section class="panel" aria-labelledby="about-title">
         <h2 id="about-title" class="panel-title">About</h2>
         <dl class="card about">

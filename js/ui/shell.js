@@ -28,6 +28,8 @@ const PAGES = Object.freeze({
  * @property {import('../core/events.js').Emitter} bus
  * @property {import('../infra/sw-client.js').SwClient} swClient
  * @property {{ flush(): Promise<void>, status(): import('../core/types.js').SaveStatus }} recordService
+ * @property {import('../core/types.js').Category} category
+ * @property {import('../core/types.js').SettingsService} settingsService
  * @property {string} appName
  * @property {string} appVersion
  * @property {Document} [doc]
