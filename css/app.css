@@ -204,6 +204,10 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
+.about dd.warn {
+  color: var(--c-warning);
+}
+
 .hint {
   font-size: 0.8125rem;
   color: var(--c-muted);

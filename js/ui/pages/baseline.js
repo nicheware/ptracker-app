@@ -3,11 +3,14 @@
 
 import { el, paint } from '../dom.js';
 import { baselineViewModel } from '../../vm/baseline-vm.js';
+import { EVENTS } from '../../core/events.js';
 
 /**
  * @typedef {Object} BaselineDeps
  * @property {import('../../core/types.js').Category} category
  * @property {import('../../core/types.js').SettingsService} settingsService
+ * @property {import('../../core/types.js').StoragePersist} storagePersist
+ * @property {import('../../core/events.js').Emitter} bus
  * @property {string} appName
  * @property {string} appVersion
  */
@@ -62,23 +65,45 @@ function renderTags(root, vm) {
 export function createBaselinePage(deps) {
   /** @type {HTMLElement|null} */
   let root = null;
+  let visible = false;
+  /** @type {import('../../core/types.js').BootReport|null} */
+  let bootReport = null;
+  /** persisted() result; undefined while pending. @type {boolean|null|undefined} */
+  let storage;
+
+  function render() {
+    if (!root) return;
+    const { settingsService: s, category } = deps;
+    const vm = baselineViewModel({
+      weekdays: s.getWeekdays(), settings: s.getSettings(), tags: s.getTags(), category,
+      appName: deps.appName, appVersion: deps.appVersion, bootReport, storage,
+    });
+    renderWeekdays(root, vm);
+    renderSettings(root, vm);
+    renderTags(root, vm);
+    paint(root, vm);
+  }
+
   return {
     /** @param {HTMLElement} section */
     init(section) {
       root = section;
+      deps.bus.on(EVENTS.BOOT_REPORT, (report) => {
+        bootReport = report;
+        if (visible) render();
+      });
     },
     show() {
-      if (!root) return;
-      const { settingsService: s, category } = deps;
-      const vm = baselineViewModel({
-        weekdays: s.getWeekdays(), settings: s.getSettings(), tags: s.getTags(), category,
-        appName: deps.appName, appVersion: deps.appVersion,
+      visible = true;
+      render();
+      // The only async work in show(): paints when it resolves (CD-4 §5.5, NFR-REL-02).
+      void deps.storagePersist.persisted().then((result) => {
+        storage = result;
+        if (visible) render();
       });
-      renderWeekdays(root, vm);
-      renderSettings(root, vm);
-      renderTags(root, vm);
-      paint(root, vm);
     },
-    async hide() {},
+    async hide() {
+      visible = false;
+    },
   };
 }

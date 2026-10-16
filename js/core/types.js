@@ -201,10 +201,75 @@
  * @property {string} [statsLabel]
  */
 
+/**
+ * @typedef {Object} QuarantineEntry  (CC-15 rev 1)
+ * @property {number} [id]            auto-increment key (absent before insert)
+ * @property {number} schemaVersion   SCHEMA.quarantine
+ * @property {'records'|'weekdays'|'tags'|'settings'} store
+ * @property {string|null} key        original key, if readable
+ * @property {string} reason          an ERR code, e.g. 'RECORD_SHAPE', 'MIGRATION_FAILED'
+ * @property {string} detail          developer message
+ * @property {*} raw                  the original stored value, unmodified
+ * @property {Timestamp} quarantinedAt
+ * @property {string} appVersion      VERSION at the time (CC-34)
+ */
+
+// ── Adapters (CC-27) ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * @typedef {Object} StoragePersist  infra/storage-persist.js (CC-27)
+ * @property {() => Promise<boolean|null>} persisted   null = API unsupported
+ * @property {() => Promise<boolean|null>} persist
+ */
+/** @typedef {Object} IdbFactoryLike   the global indexedDB, or new IDBFactory() from fake-indexeddb (CC-27) */
+
+// ── Persistence gateway (CC-39) ─────────────────────────────────────────────────────────────────────
+
+/** @typedef {'records'|'weekdays'|'tags'|'settings'|'quarantine'} StoreName */
+/**
+ * @typedef {{ type: 'put', store: StoreName, value: object }
+ *         | { type: 'putIfAbsent', store: StoreName, value: object }
+ *         | { type: 'add', store: 'quarantine', value: object }
+ *         | { type: 'delete', store: StoreName, key: string|number }
+ *         | { type: 'clear', store: StoreName }} WriteOp
+ */
+/**
+ * @typedef {Object} WriteResult
+ * @property {number} written            puts + adds that were applied
+ * @property {Array<string|number>} skipped   keys skipped by putIfAbsent, in op order
+ * @property {number} deleted            delete ops applied (whether or not the key existed)
+ */
+/**
+ * @typedef {Object} StoreSnapshot       contents of the stores, each ascending by key
+ * @property {DayRecord[]} records
+ * @property {WeekdayRow[]} weekdays
+ * @property {Tag[]} tags
+ * @property {Settings[]} settings       0 or 1 element
+ * @property {QuarantineEntry[]} quarantine
+ */
+/**
+ * @typedef {Object} BootReport          (CC-29)
+ * @property {number} migrated           objects rewritten by a migration step this boot
+ * @property {number} quarantined        objects moved to quarantine this boot
+ * @property {number} derivedFixed       unmigrated records whose stored derived copies were wrong
+ * @property {number} quarantineTotal    entries in the quarantine store after this boot
+ */
+/**
+ * @typedef {Object} Gateway  (CC-39). readSnapshot, replaceAll and the putIfAbsent op are M2 (CD-1 §14).
+ * @property {(store: StoreName) => Promise<object[]>} getAll
+ * @property {(store: StoreName, key: string|number) => Promise<object|null>} get
+ * @property {(store: StoreName) => Promise<number>} count
+ * @property {(ops: WriteOp[]) => Promise<WriteResult>} write          one atomic readwrite transaction
+ * @property {(opts: {category: Category, clock: Clock, appVersion: string}) => Promise<BootReport>} boot
+ * @property {() => void} close
+ */
+
 // ── Services (CC-41) ────────────────────────────────────────────────────────────────────────────────
 
 /**
- * @typedef {Object} SettingsService  (CC-41). The read half; IT-05 adds load/reload and IT-06 the writes.
+ * @typedef {Object} SettingsService  (CC-41). Load and read side; IT-06 adds the writes, IT-10 markExported.
+ * @property {() => Promise<void>} load            reads three stores, seeds/repairs, fills caches (CC-29 step 4)
+ * @property {() => Promise<void>} reload          re-read after restore (CC-30)
  * @property {() => Settings} getSettings
  * @property {() => Object} getCategorySettings
  * @property {() => WeekdayRow[]} getWeekdays

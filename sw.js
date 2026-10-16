@@ -2,8 +2,8 @@
 // sw.js — PTracker service worker: versioned precache, cache-first, prompted update (CD-7 §4).
 'use strict';
 
-const VERSION = '0.4.1+20261016.0607';           // stamped (CC-34); must equal js/version.js
-const SHELL_HASH = 'dad32ce6cd60dc38';           // stamped; hash of the shell files (CD-7 §10)
+const VERSION = '0.5.0+20261016.0627';           // stamped (CC-34); must equal js/version.js
+const SHELL_HASH = '28357fc6cd2412e1';           // stamped; hash of the shell files (CD-7 §10)
 const PRECACHE = [                               // stamped/checked; = shellFiles() (CD-7 §3)
   'css/app.css',
   'icons/apple-touch-icon-180.png',
@@ -28,12 +28,16 @@ const PRECACHE = [                               // stamped/checked; = shellFile
   'js/core/errors.js',
   'js/core/events.js',
   'js/core/format.js',
+  'js/core/migrations.js',
   'js/core/numbers.js',
   'js/core/schema.js',
   'js/core/settings-model.js',
   'js/core/types.js',
   'js/infra/clock.js',
+  'js/infra/db.js',
+  'js/infra/storage-persist.js',
   'js/infra/sw-client.js',
+  'js/services/settings-service.js',
   'js/ui/dom.js',
   'js/ui/messages.js',
   'js/ui/pages/baseline.js',

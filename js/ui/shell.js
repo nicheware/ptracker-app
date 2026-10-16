@@ -1,10 +1,11 @@
 // @ts-check
 // Shell: creates the page controllers, starts the router, marks the active tab, shows toasts and the update
-// prompt, emits app:resume and reveals the app (CD-4 §5.2, §5.6, §5.7).
+// prompt, emits boot:report and app:resume, reveals the app, and shows the fatal screen (CD-4 §5.1, §5.2, §5.6, §5.7).
 
 import { createRouter } from './router.js';
 import { createToaster } from './toast.js';
-import { NOTICES, ACTIONS } from './messages.js';
+import { NOTICES, ACTIONS, messageFor } from './messages.js';
+import { paint } from './dom.js';
 import { createEntryPage } from './pages/entry.js';
 import { createHistoryPage } from './pages/history.js';
 import { createBaselinePage } from './pages/baseline.js';
@@ -12,7 +13,6 @@ import { shellViewModel, resumeState } from '../vm/shell-vm.js';
 import { EVENTS } from '../core/events.js';
 import { todayIso } from '../core/dates.js';
 
-// TODO(IT-05): boot:report emission and the db:versionchange toast.
 // TODO(IT-08): flush points (pagehide, visibilitychange → hidden) and the save-error toast.
 
 /** M1 page factories (CC-31); M2 adds charts, import and backup. */
@@ -30,6 +30,8 @@ const PAGES = Object.freeze({
  * @property {{ flush(): Promise<void>, status(): import('../core/types.js').SaveStatus }} recordService
  * @property {import('../core/types.js').Category} category
  * @property {import('../core/types.js').SettingsService} settingsService
+ * @property {import('../core/types.js').StoragePersist} storagePersist
+ * @property {import('../core/types.js').BootReport} bootReport
  * @property {string} appName
  * @property {string} appVersion
  * @property {Document} [doc]
@@ -38,7 +40,7 @@ const PAGES = Object.freeze({
 
 /** @param {ShellDeps} deps */
 export function startShell(deps) {
-  const { doc = document, win = window, bus, clock, swClient, recordService } = deps;
+  const { doc = document, win = window, bus, clock, swClient, recordService, bootReport } = deps;
   const app = /** @type {HTMLElement} */ (doc.getElementById('app'));
   const tabbar = /** @type {HTMLElement} */ (doc.getElementById('tabbar'));
   const boot = /** @type {HTMLElement} */ (doc.getElementById('boot'));
@@ -51,6 +53,18 @@ export function startShell(deps) {
   });
   bus.on(EVENTS.UI_TOAST, (toast) => toaster.show(toast));
   bus.on(EVENTS.SW_UPDATE_READY, showUpdateToast);
+  bus.on(EVENTS.DB_VERSIONCHANGE, () => toaster.show({
+    kind: 'warning',
+    text: NOTICES.DB_VERSIONCHANGE,
+    action: { label: ACTIONS.RELOAD, run: () => win.location.reload() },
+    sticky: true,
+    key: 'versionchange',
+  }));
+  bus.on(EVENTS.BOOT_REPORT, (/** @type {import('../core/types.js').BootReport} */ report) => {
+    if (report.quarantined > 0) {
+      toaster.show({ kind: 'warning', text: NOTICES.QUARANTINED, action: null, sticky: false, key: 'quarantine' });
+    }
+  });
 
   /** @type {ReturnType<typeof createRouter>|null} */
   let router = null;
@@ -69,6 +83,7 @@ export function startShell(deps) {
     controller.init(section);
     pages[key] = { controller, section };
   }
+  bus.emit(EVENTS.BOOT_REPORT, bootReport);         // after init, so the Baseline page receives it (CD-4 §5.2)
 
   let revealed = false;
   router = createRouter({
@@ -128,4 +143,21 @@ export function startShell(deps) {
 
   router.start();
   return { router, toaster };
+}
+
+/**
+ * Shows the static fatal screen with the wording for `error` and wires Reload. Never touches data (CD-4 §5.1).
+ * @param {unknown} error
+ * @param {{ doc?: Document, win?: Window }} [env]
+ */
+export function showFatal(error, { doc = document, win = window } = {}) {
+  console.error('[ptracker:boot] fatal', error);
+  const fatal = /** @type {HTMLElement} */ (doc.getElementById('fatal'));
+  paint(fatal, { message: messageFor(error) });
+  fatal.querySelector('[data-action="fatal.reload"]')?.addEventListener('click', () => win.location.reload());
+  for (const id of ['boot', 'app', 'tabbar']) {
+    const node = doc.getElementById(id);
+    if (node) node.hidden = true;
+  }
+  fatal.hidden = false;
 }

@@ -1,6 +1,6 @@
 // @ts-check
-// Baseline view-model: weekday table, category settings, tag list and About panel (CD-4 §10.3). IT-04 builds
-// the read-only parts.
+// Baseline view-model: weekday table, category settings, tag list and About panel (CD-4 §10.3). Read-only parts
+// so far: IT-06 adds the editable cells and errors.
 
 import { weekdayName } from '../core/dates.js';
 import { formatValue, kindLabel, toInputText } from '../core/format.js';
@@ -23,8 +23,38 @@ import { formatValue, kindLabel, toInputText } from '../core/format.js';
  * @property {Object<string, CellVM & { label: string }>} settings   keyed by slug(FieldId), in descriptor order
  * @property {Array<{ code: string, label: string, kindLabel: string, glyph: string, retired: boolean,
  *                   canUp: boolean, canDown: boolean }>} tags
- * @property {{ name: string, version: string }} about
+ * @property {{ name: string, version: string, storage: string, storageWarn: boolean, integrity: string,
+ *             quarantineWarn: boolean }} about
  */
+
+/** About-panel storage texts (CD-4 §10.3, NFR-REL-02). */
+export const STORAGE_TEXT = Object.freeze({
+  persistent: 'Persistent ✓',
+  notPersistent: 'Not persistent ⚠ — iOS may clear PTracker\'s data when storage is low. Export a CSV regularly.',
+  unsupported: 'Unknown (not supported by this browser)',
+  checking: 'Checking…',
+});
+
+/**
+ * @param {boolean|null|undefined} storage  persisted() result; undefined while it is pending
+ * @returns {{ storage: string, storageWarn: boolean }}
+ */
+function storageText(storage) {
+  if (storage === true) return { storage: STORAGE_TEXT.persistent, storageWarn: false };
+  if (storage === false) return { storage: STORAGE_TEXT.notPersistent, storageWarn: true };
+  if (storage === null) return { storage: STORAGE_TEXT.unsupported, storageWarn: false };
+  return { storage: STORAGE_TEXT.checking, storageWarn: false };
+}
+
+/**
+ * Startup-check text from the boot report (CD-4 §10.3, NFR-REL-04/05); '' before the report arrives.
+ * @param {import('../core/types.js').BootReport|null|undefined} report
+ */
+function integrityText(report) {
+  if (!report) return '';
+  return `Startup check: ${report.derivedFixed} values recalculated, ${report.quarantined} records set aside `
+    + `(${report.quarantineTotal} in total)`;
+}
 
 /** Tag-kind glyphs (CD-4 §9 tagChip), shown with the kind label, never colour alone (NFR-USE-04). */
 const KIND_GLYPHS = Object.freeze({ treatment: '▲', positive: '★', event: '●' });
@@ -72,12 +102,12 @@ function orderedTags(tags) {
 /**
  * The Baseline page view-model (CD-4 §10.3), read-only part.
  * @param {{ weekdays: WeekdayRow[], settings: Settings, tags: Tag[], category: Category, appName: string,
- *           appVersion: string }} input
+ *           appVersion: string, bootReport?: import('../core/types.js').BootReport|null,
+ *           storage?: boolean|null }} input   storage: persisted() result, undefined while pending
  * @returns {BaselineVM}
  */
-export function baselineViewModel({ weekdays, settings, tags, category, appName, appVersion }) {
-  // TODO(IT-05): about.storage, storageWarn, recordCount, integrity and quarantineWarn from records, bootReport
-  // and storage.
+export function baselineViewModel({ weekdays, settings, tags, category, appName, appVersion, bootReport, storage }) {
+  // TODO(IT-07): about.recordCount from the record service's records.
   // TODO(IT-06): errors (inline validation) and editable cells.
   // TODO(IT-11): renames (§10.4, NV-PRG-06).
   const id = category.id;
@@ -119,6 +149,12 @@ export function baselineViewModel({ weekdays, settings, tags, category, appName,
     categoryTitle: `${category.name} settings`,
     settings: settingsVm,
     tags: tagVms,
-    about: { name: appName, version: appVersion },
+    about: {
+      name: appName,
+      version: appVersion,
+      ...storageText(storage),
+      integrity: integrityText(bootReport),
+      quarantineWarn: (bootReport?.quarantineTotal ?? 0) > 0,
+    },
   };
 }
