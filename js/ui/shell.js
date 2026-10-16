@@ -1,10 +1,12 @@
 // @ts-check
 // Shell: creates the page controllers, starts the router, marks the active tab, shows toasts and the update
-// prompt, emits boot:report and app:resume, reveals the app, and shows the fatal screen (CD-4 §5.1, §5.2, §5.6, §5.7).
+// prompt and the save-error toast, flushes the save queue at the CC-29 flush points, emits boot:report and app:resume,
+// reveals the app, and shows the fatal screen (CD-4 §5.1, §5.2, §5.6, §5.7).
 
 import { createRouter } from './router.js';
 import { createToaster } from './toast.js';
 import { NOTICES, ACTIONS, messageFor } from './messages.js';
+import { ERR } from '../core/errors.js';
 import { paint } from './dom.js';
 import { createEntryPage } from './pages/entry.js';
 import { createHistoryPage } from './pages/history.js';
@@ -12,8 +14,6 @@ import { createBaselinePage } from './pages/baseline.js';
 import { shellViewModel, resumeState } from '../vm/shell-vm.js';
 import { EVENTS } from '../core/events.js';
 import { todayIso } from '../core/dates.js';
-
-// TODO(IT-08): flush points (pagehide, visibilitychange → hidden) and the save-error toast.
 
 /** M1 page factories (CC-31); M2 adds charts, import and backup. */
 const PAGES = Object.freeze({
@@ -27,7 +27,7 @@ const PAGES = Object.freeze({
  * @property {import('../core/types.js').Clock} clock
  * @property {import('../core/events.js').Emitter} bus
  * @property {import('../infra/sw-client.js').SwClient} swClient
- * @property {{ flush(): Promise<void>, status(): import('../core/types.js').SaveStatus }} recordService
+ * @property {{ flush(): Promise<void>, retry(): Promise<void>, status(): import('../core/types.js').SaveStatus }} recordService
  * @property {import('../core/types.js').Category} category
  * @property {import('../core/types.js').SettingsService} settingsService
  * @property {import('../core/types.js').StoragePersist} storagePersist
@@ -60,6 +60,7 @@ export function startShell(deps) {
     sticky: true,
     key: 'versionchange',
   }));
+  bus.on(EVENTS.SAVE_STATUS, onSaveStatus);
   bus.on(EVENTS.BOOT_REPORT, (/** @type {import('../core/types.js').BootReport} */ report) => {
     if (report.quarantined > 0) {
       toaster.show({ kind: 'warning', text: NOTICES.QUARANTINED, action: null, sticky: false, key: 'quarantine' });
@@ -112,12 +113,48 @@ export function startShell(deps) {
     lastToday = state.today;
     bus.emit(EVENTS.APP_RESUME, state);           // Entry handles the day rollover (D4-09)
   }
+  // Flush points (CC-29): hidden or leaving. Not awaited: the first write starts synchronously (CD-5 §9.3).
   doc.addEventListener('visibilitychange', () => {
     if (doc.visibilityState === 'visible') resume();
+    else void recordService.flush();
   });
+  win.addEventListener('pagehide', () => { void recordService.flush(); });
   win.addEventListener('pageshow', (event) => {
     if (/** @type {PageTransitionEvent} */ (event).persisted) resume();
   });
+
+  /**
+   * Save errors become one sticky toast (key 'save') with Retry → recordService.retry(); the next save that leaves
+   * nothing in error dismisses it (CD-4 §5.7, CC-29 rev 1). SCHEMA_TOO_NEW offers Reload instead (CD-0 RR-4).
+   * @param {{ status: string, error: import('../core/errors.js').AppError|null }} payload
+   */
+  function onSaveStatus({ status, error }) {
+    if (status === 'error') showSaveError(error);
+    else if ((status === 'saved' || status === 'idle') && recordService.status().status !== 'error') {
+      toaster.dismiss('save');
+    }
+  }
+
+  /** @param {import('../core/errors.js').AppError|null} error */
+  function showSaveError(error) {
+    const reload = error?.code === ERR.SCHEMA_TOO_NEW;
+    toaster.show({
+      kind: 'error',
+      text: messageFor(error, 'save'),
+      action: reload
+        ? { label: ACTIONS.RELOAD, run: () => win.location.reload() }
+        : { label: ACTIONS.RETRY, run: () => { void retrySave(); } },
+      sticky: true,
+      key: 'save',
+    });
+  }
+
+  /** The toast is dismissed before its action runs, so a retry that fails again shows it again. */
+  async function retrySave() {
+    await recordService.retry();                      // never rejects
+    const s = recordService.status();
+    if (s.status === 'error') showSaveError(s.error);
+  }
 
   /** Sticky update prompt (CD-4 §5.7, CC-29 rev 1, CD-7 §7 U1). */
   function showUpdateToast() {

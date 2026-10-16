@@ -1,7 +1,7 @@
 // @ts-check
 // Entry view-model: pure display state for the Entry page (CD-4 §8.3): date header, results, fields, chips, combos.
 
-import { formatLongDate, formatShortDate, weekdayName, weekdayOf } from '../core/dates.js';
+import { addDays, formatLongDate, formatShortDate, weekdayName, weekdayOf } from '../core/dates.js';
 import { formatValue, kindGlyph, kindLabel, toInputText, BLANK } from '../core/format.js';
 import { FRAMEWORK_METRICS } from '../core/columns.js';
 import { splitOther } from '../core/record-model.js';
@@ -85,6 +85,7 @@ export const COMBO_VISIBLE = 6;
  * @property {string} otherText                        free-text tokens of the Other list
  * @property {{show: boolean, text: string, token: string}} suggestion
  * @property {boolean} canDelete
+ * @property {{ title: string, body: string, confirmLabel: string, done: string }} deleteDialog   CD-4 §8.7
  * @property {string} announce                         live-region text (CD-4 §13)
  */
 
@@ -154,12 +155,12 @@ function metricVm(d, cc) {
   };
 }
 
-/** @param {import('../core/types.js').SaveStatus|undefined} save */
-function statusText(save) {
+/** @param {import('../core/types.js').SaveStatus|undefined} save @param {boolean} showSaved */
+function statusText(save, showSaved) {
   switch (save?.status) {
     case 'pending':
     case 'saving': return { text: 'Saving…', error: false };
-    case 'saved': return { text: 'Saved', error: false };
+    case 'saved': return { text: showSaved ? 'Saved' : '', error: false };
     case 'error': return { text: 'Not saved', error: true };
     default: return { text: '', error: false };
   }
@@ -232,9 +233,10 @@ function comboVm(desc, selected, known, invalidText, expanded) {
  * The Entry page view-model (CD-4 §8.3). Without ctx (e.g. before the record service is ready) only `date` is set.
  * @param {{ draft: Draft | { record: { date: IsoDate } }, ctx?: EntryContext|null, category?: Category|null,
  *           tags?: Tag[], today: IsoDate, suggestions?: Object<string, number>|null,
- *           ui?: { expanded?: Object<string, boolean> } }} input
+ *           ui?: { expanded?: Object<string, boolean>, showSaved?: boolean } }} input
  *   ctx: recordService.entryContext(draft) (CC-40); tags: the full catalogue ordered by `order`;
- *   ui.expanded: combo fields (by slug) whose More… was tapped
+ *   ui.expanded: combo fields (by slug) whose More… was tapped; ui.showSaved: false hides a "Saved" left over
+ *   from before the last date change (CD-4 §8.3), default true
  * @returns {EntryVM | { date: DateVM }}
  */
 export function entryViewModel({ draft, ctx = null, category = null, tags = [], today, ui = {} }) {
@@ -295,7 +297,7 @@ export function entryViewModel({ draft, ctx = null, category = null, tags = [], 
 
   return {
     date,
-    status: statusText(ctx.save),
+    status: statusText(ctx.save, ui.showSaved !== false),
     complete,
     metrics,
     badges: (category.dayBadges?.(cc) ?? []).map((b) => ({ id: b.id, text: b.text, warning: b.tone === 'warning' })),
@@ -313,21 +315,48 @@ export function entryViewModel({ draft, ctx = null, category = null, tags = [], 
     // TODO(IT-11): tagSuggestion and the "Add as tag" line (FR-TAG-06, May).
     suggestion: { show: false, text: '', token: '' },
     canDelete: ctx.persisted,
+    deleteDialog: deleteDialog(record.date),
     announce,
   };
 }
 
 /**
+ * Wording of the Delete this day confirmation and its result (CD-4 §8.7, FR-SAVE-05).
+ * @param {IsoDate} iso
+ */
+export function deleteDialog(iso) {
+  const short = formatShortDate(iso);
+  return {
+    title: 'Delete this day?',
+    body: `The record for ${short} will be removed. This can't be undone.`,
+    confirmLabel: 'Delete',
+    done: `Record for ${short} deleted`,
+  };
+}
+
+/**
+ * The info toast text when Entry stays on yesterday after midnight (CD-4 §5.6).
+ * @param {IsoDate} today
+ */
+export function rolloverNotice(today) {
+  return { text: `It's now ${formatLongDate(today)}.`, action: 'Go to today' };
+}
+
+/**
  * What the Entry page does on `app:resume` (CD-4 §5.6, D4-09).
  * 'today': it follows today and the day changed, so it opens the new today;
+ * 'stay': it follows today, but shows yesterday with an incomplete record (stored or pending), so it stays on
+ *         yesterday, re-pins the hash and shows the "It's now …" toast;
  * 'refresh': it is pinned and the day changed, so it stays and repaints Next and the picker's max;
  * 'none': the day did not change.
- * @param {{ following: boolean, dayChanged: boolean }} state
- * @returns {'today'|'refresh'|'none'}
+ * @param {{ following: boolean, dayChanged: boolean, shown?: IsoDate|null, today?: IsoDate|null,
+ *           hasRecord?: boolean, complete?: boolean }} state
+ *   shown: the displayed date; hasRecord: a record for it is stored or pending; complete: all three scores
+ * @returns {'today'|'stay'|'refresh'|'none'}
  */
-export function resumeAction({ following, dayChanged }) {
+export function resumeAction({ following, dayChanged, shown = null, today = null, hasRecord = false, complete = false }) {
   if (!dayChanged) return 'none';
-  // TODO(IT-08): a follow-today page still completing yesterday's incomplete record stays on yesterday,
-  // re-pins #entry/<yesterday> and shows the "It's now {long date}." toast with Go to today.
-  return following ? 'today' : 'refresh';
+  if (!following) return 'refresh';
+  if (shown && today && shown === addDays(today, -1) && hasRecord && !complete) return 'stay';
+  return 'today';
 }

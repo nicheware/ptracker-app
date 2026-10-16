@@ -38,10 +38,7 @@ async function main() {
   }
   void storagePersist.persist();                                     // step 6, not awaited
 
-  // TODO(IT-08): stand-in flush until the save queue exists; the update flow calls flush() then status().
-  const shellRecordService = { ...recordService, flush: async () => {} };
-
-  startShell({ bus, clock, swClient, recordService: shellRecordService, category, settingsService, storagePersist, bootReport,
+  startShell({ bus, clock, swClient, recordService, category, settingsService, storagePersist, bootReport,
     appName: APP_NAME, appVersion: VERSION });                       // step 7
 }
 

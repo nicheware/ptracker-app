@@ -998,3 +998,23 @@ button:disabled {
     animation: none !important;
   }
 }
+
+/* Entry save status pill (CD-4 §8.1, D4-08) and Delete this day (§8.7) */
+.save-pill {
+  min-width: 4.5em;
+  font-size: 0.875rem;
+  color: var(--c-muted);
+}
+.save-pill:empty {
+  visibility: hidden;
+}
+.save-pill.is-error {
+  color: var(--c-danger);
+  font-weight: 600;
+}
+.danger-zone {
+  margin-top: var(--space-5);
+}
+.danger-zone .panel-button {
+  margin: 0 0 var(--space-5);
+}

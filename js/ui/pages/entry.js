@@ -1,16 +1,14 @@
 // @ts-check
-// Entry page controller (CD-4 §8): input → applyInput → entryContext → view-model → paint. Saving arrives in IT-08.
+// Entry page controller (CD-4 §8): input → applyInput → save → entryContext → view-model → paint; Delete this day.
 
 import { el, paint, renderList, renderField, fillField, preciseFocus, preciseBlur, slug } from '../dom.js';
-import { scorePicker, tagChip } from '../widgets.js';
-import { entryViewModel, resumeAction, metricDescriptors, metricGroup } from '../../vm/entry-vm.js';
+import { scorePicker, tagChip, confirmDialog } from '../widgets.js';
+import { messageFor } from '../messages.js';
+import { entryViewModel, resumeAction, rolloverNotice, metricDescriptors, metricGroup } from '../../vm/entry-vm.js';
 import { addDays, isIsoDate, todayIso, weekdayOf } from '../../core/dates.js';
 import { toInputText } from '../../core/format.js';
 import { EVENTS } from '../../core/events.js';
 import { toggleTag, setFreeText, defaultValueFor } from '../../core/record-model.js';
-
-// TODO(IT-08): the save pill, recordService.save(next, { kind }) on change, flush on hide and date change, and
-// Delete this day (CD-4 §8.7).
 
 /** @typedef {import('../../core/types.js').IsoDate} IsoDate */
 /** @typedef {import('../../core/types.js').FieldId} FieldId */
@@ -52,6 +50,11 @@ export function createEntryPage(deps) {
   let expanded = {};
   /** @type {EntryVM|null} */
   let lastVm = null;
+  /** "Saved" shows only after a save of the shown date since the last date change (CD-4 §8.3). */
+  let showSaved = false;
+  /** @type {HTMLDialogElement|null} */
+  let confirmDlg = null;
+  const toast = (/** @type {import('../toast.js').Toast} */ t) => bus.emit(EVENTS.UI_TOAST, t);
 
   /** @type {Map<FieldId, FieldDescriptor>} descriptors of the typed fields, for fillField */
   const descs = new Map([['baseline', BASELINE_DESC], ['other', OTHER_DESC], ['comment', COMMENT_DESC]]);
@@ -62,16 +65,38 @@ export function createEntryPage(deps) {
   const tagCodes = () => new Set(page.tags.map((t) => t.code));      // retired included (CC-13 rev 1)
 
   /**
-   * The one input path (CD-4 §8.2): pure applyInput, then repaint. Invalid or unchanged input keeps the
-   * same record (CC-17 rev 1), so IT-08's save(next, { kind }) runs only on a real change.
+   * The one input path (CD-4 §8.2): pure applyInput, save only when the record changed (invalid or unchanged
+   * input keeps the same record, CC-17 rev 1), then repaint.
    * @param {FieldId} fieldId
    * @param {unknown} value
-   * @param {InputKind} _kind
+   * @param {InputKind} kind
    */
-  function onInput(fieldId, value, _kind) {
+  function onInput(fieldId, value, kind) {
     if (!draft) return;
-    draft = recordService.applyInput(draft, fieldId, value);
+    const next = recordService.applyInput(draft, fieldId, value);
+    if (next.record !== draft.record) {
+      showSaved = true;
+      recordService.save(next, { kind });
+    }
+    draft = next;
     refresh();
+  }
+
+  /** Delete this day (CD-4 §8.7, FR-SAVE-05): flush, confirm, delete, re-open the date with weekday defaults. */
+  async function deleteDay() {
+    if (!draft || !confirmDlg) return;
+    const iso = draft.record.date;
+    await recordService.flush();                    // never rejects
+    const words = /** @type {EntryVM} */ (lastVm).deleteDialog;
+    const ok = await confirmDialog(confirmDlg, { title: words.title, body: words.body, confirmLabel: words.confirmLabel, danger: true });
+    if (!ok) return;
+    try {
+      await recordService.delete(iso);
+      toast({ kind: 'success', text: words.done, action: null, sticky: false, key: 'delete' });
+      if (draft?.record.date === iso) show({ date: following ? null : iso });
+    } catch (e) {
+      toast({ kind: 'error', text: messageFor(e, 'delete'), action: null, sticky: false, key: 'delete' });
+    }
   }
 
   /** @type {Object<string, (target: HTMLElement) => void>} */
@@ -105,6 +130,7 @@ export function createEntryPage(deps) {
       onInput(fieldId, toInputText(value), 'tap');
       if (root) fillField(root, fieldId, value, /** @type {FieldDescriptor} */ (descs.get(fieldId)));
     },
+    'record.delete': () => { void deleteDay(); },
   };
 
   const currentIso = () => /** @type {Draft} */ (draft)?.record.date ?? todayIso(clock.now());
@@ -112,7 +138,7 @@ export function createEntryPage(deps) {
   function refresh() {
     if (!root || !draft) return;
     const ctx = recordService.entryContext(draft);
-    const vm = /** @type {EntryVM} */ (entryViewModel({ draft, ctx, category, ...page, ui: { expanded } }));
+    const vm = /** @type {EntryVM} */ (entryViewModel({ draft, ctx, category, ...page, ui: { expanded, showSaved } }));
     lastVm = vm;
     renderDynamic(root, vm);
     paint(root, vm);
@@ -174,8 +200,11 @@ export function createEntryPage(deps) {
     following = !date;
     const today = todayIso(clock.now());
     const iso = date ?? today;
-    if (!draft || draft.record.date !== iso) expanded = {};
-    // TODO(IT-08): if (draft && draft.record.date !== iso) recordService.flush() (not awaited).
+    if (!draft || draft.record.date !== iso) {
+      expanded = {};
+      showSaved = false;
+    }
+    if (draft && draft.record.date !== iso) void recordService.flush();   // not awaited; never rejects (CD-4 §8.2)
     draft = recordService.openDraft(iso);
     page = { tags: [...settingsService.getTags()], today };
     refresh();
@@ -273,11 +302,31 @@ export function createEntryPage(deps) {
         // Desktop browsers open the picker only from its icon; the input is transparent over the date text.
         try { picker?.showPicker?.(); } catch { /* not allowed or unsupported: the native control still works */ }
       });
-      bus.on(EVENTS.APP_RESUME, ({ dayChanged }) => {
-        if (root?.hidden) return;                     // a hidden Entry re-reads today on its next show()
-        const action = resumeAction({ following, dayChanged });
+      confirmDlg = /** @type {HTMLDialogElement|null} */ (section.ownerDocument.getElementById('dlg-confirm'));
+      bus.on(EVENTS.SAVE_STATUS, (/** @type {{ date: IsoDate|null }} */ { date }) => {
+        if (!draft || root?.hidden) return;
+        if (date === draft.record.date) {
+          showSaved = true;
+          refresh();
+        } else if (date === null) refresh();
+      });
+      bus.on(EVENTS.DATA_CHANGED, (/** @type {{ scope: string, dates: IsoDate[]|null }} */ { scope, dates }) => {
+        // Other dates' records can change this date's history (active program); own saves are already painted.
+        if (!draft || root?.hidden || scope !== 'records') return;
+        if (dates === null || dates.some((d) => d !== draft?.record.date)) refresh();
+      });
+      bus.on(EVENTS.APP_RESUME, ({ dayChanged, today }) => {
+        if (root?.hidden || !draft) return;           // a hidden Entry re-reads today on its next show()
+        const ctx = recordService.entryContext(draft);
+        const action = resumeAction({ following, dayChanged, shown: draft.record.date, today,
+          hasRecord: ctx.persisted, complete: ctx.derived.complete });
         if (action === 'today') show({ date: null });
-        else if (action === 'refresh') {
+        else if (action === 'stay') {
+          const shown = draft.record.date;
+          navigate({ page: 'entry', date: shown }, { replace: true });   // re-pin #entry/<yesterday> (D4-09)
+          const notice = rolloverNotice(today);
+          toast({ kind: 'info', text: notice.text, action: { label: notice.action, run: () => goTo(null) }, sticky: false, key: 'rollover' });
+        } else if (action === 'refresh') {
           page = { ...page, today: todayIso(clock.now()) };
           refresh();
         }
@@ -285,7 +334,8 @@ export function createEntryPage(deps) {
     },
     show,
     async hide() {
-      // TODO(IT-08): await recordService.flush().
+      if (confirmDlg?.open) confirmDlg.close('cancel');
+      await recordService.flush();                    // never rejects (CC-25 rev 1); resolves when committed
     },
   };
 }

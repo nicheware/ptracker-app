@@ -47,6 +47,7 @@
             <input type="date" data-action-input="date.pick" data-attr="date.max:max">
           </label>
           <button type="button" class="date-today" data-action="date.today" data-show="date.showToday">Today</button>
+          <span class="save-pill" data-out="status.text" data-flag="status.error:is-error"></span>
         </div>
         <dl class="metrics-context"></dl>
         <div class="day-badges"></div>
@@ -70,6 +71,9 @@
           <div class="comment"></div>
         </div>
       </section>
+      <div class="danger-zone">
+        <button type="button" class="panel-button danger-text" data-action="record.delete" data-show="canDelete" hidden>Delete this day</button>
+      </div>
     </section>
     <section id="page-history" data-page="history" hidden aria-labelledby="history-title">
       <header class="page-header">

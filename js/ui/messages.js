@@ -3,7 +3,7 @@
 
 import { isAppError } from '../core/errors.js';
 
-// The save, delete, removeAll and export contexts arrive with their pages (IT-07..IT-10).
+// The export context arrives with CSV export (IT-10).
 
 /** '<context>.<CODE>' or '<CODE>' → sentence. */
 export const MESSAGES = Object.freeze({
@@ -16,6 +16,16 @@ export const MESSAGES = Object.freeze({
   CATEGORY_INVALID: 'This version of PTracker has a setup problem and can\'t start. Nothing was changed. Reload, or reinstall when an update is available.',
   TX_FAILED: 'PTracker couldn\'t write to its storage. Nothing was changed. Please try again.',
   QUOTA_EXCEEDED: 'The device is out of storage. Free some space, then try again.',
+  // Entry saves, Delete this day and Remove all (CD-4 §5.8, CD-5 §10, CD-0 RR-4)
+  'save.TX_FAILED': 'Not saved. Tap to retry.',
+  'save.QUOTA_EXCEEDED': 'Not saved: the phone is out of storage. Free some space, then tap to retry.',
+  'save.SCHEMA_TOO_NEW': 'Not saved. A newer version is open — reload to update.',
+  'save.RECORD_INVALID': 'Not saved: this entry has a problem. Please check the values.',
+  RECORD_INVALID: 'This change has a problem and wasn\'t saved. Nothing was changed.',
+  'delete.TX_FAILED': 'Could not delete. Nothing was changed.',
+  'delete.QUOTA_EXCEEDED': 'Could not delete. Nothing was changed.',
+  'removeAll.TX_FAILED': 'Could not delete. Nothing was changed.',
+  'removeAll.QUOTA_EXCEEDED': 'Could not delete. Nothing was changed.',
   // Baseline & settings writes (CD-4 §10.2)
   'settings.TX_FAILED': 'Not saved. Nothing was changed. Please try again.',
   UNKNOWN: 'Something went wrong. Your saved data is safe. Reload PTracker.',
@@ -34,6 +44,7 @@ export const NOTICES = Object.freeze({
 /** Action labels used by the shell's toasts. */
 export const ACTIONS = Object.freeze({
   RELOAD: 'Reload',
+  RETRY: 'Retry',
 });
 
 /**
