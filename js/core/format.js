@@ -101,3 +101,15 @@ const KIND_SHORT = Object.freeze({ treatment: 'Treat', positive: 'Pos', event: '
 export function kindShortLabel(kind) {
   return Object.hasOwn(KIND_SHORT, kind) ? KIND_SHORT[/** @type {keyof typeof KIND_SHORT} */ (kind)] : kindLabel(kind);
 }
+
+/** Tag-kind glyphs, always shown beside text (FR-TAG-05, NFR-USE-04; CD-4 §6.5). */
+const KIND_GLYPHS = Object.freeze({ treatment: '▲', positive: '★', event: '●' });
+
+/**
+ * Glyph of a tag kind: 'treatment' → '▲', 'positive' → '★', 'event' → '●'; '' for other kinds.
+ * @param {string} kind
+ * @returns {string}
+ */
+export function kindGlyph(kind) {
+  return Object.hasOwn(KIND_GLYPHS, kind) ? KIND_GLYPHS[/** @type {keyof typeof KIND_GLYPHS} */ (kind)] : '';
+}

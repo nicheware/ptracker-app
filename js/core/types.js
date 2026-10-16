@@ -118,6 +118,26 @@
  * @property {boolean} [weekdayDefault]
  */
 
+// ── Draft and entry context (CC-17, CC-40) ──────────────────────────────────────────────────────────
+
+/**
+ * @typedef {Object} Draft  (CC-17)
+ * @property {DayRecord} record    always a valid DayRecord shape; holds only valid values
+ * @property {boolean} persisted   true once a version of this date exists in the store
+ * @property {Object<FieldId, string>} invalid   raw text of fields whose last edit failed validation
+ */
+/**
+ * @typedef {Object} EntryContext  everything the entry view-model needs besides the draft (CC-40, CD-5 §6.1)
+ * @property {WeekdayRow} weekdayRow
+ * @property {Derived} derived                   derive(draft.record)
+ * @property {HistoryValues} history             this date, over the effective list (cache + pending + draft)
+ * @property {Object<FieldId, boolean>} overridden
+ * @property {Object<string, string[]>} fieldOptions   combo options by key, most recent first (no fixedOptions)
+ * @property {ValidationResult} validation       validateDraft(draft)
+ * @property {boolean} persisted
+ * @property {SaveStatus} save                   statusOf(date)
+ */
+
 // ── Migrations (CC-26) ──────────────────────────────────────────────────────────────────────────────
 
 /**

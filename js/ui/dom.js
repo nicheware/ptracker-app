@@ -242,6 +242,8 @@ export function renderList(container, items, keyOf, render, opts = {}) {
  * @property {string} [label]        label text instead of desc.label
  * @property {boolean} [hideLabel]   label visually hidden (table cells)
  * @property {boolean} [multiline]   text: a textarea
+ * @property {boolean} [defaultLine] entry page: the default / "Overridden" / reset line, painted from
+ *                                   fields.<slug>.{defaultText, overridden, offerReset} (CD-4 §8.1, §8.3)
  */
 
 /** @param {FieldDescriptor} desc */
@@ -260,8 +262,52 @@ function fieldWrapper(desc, fieldId, opts, control) {
   return el('div', { class: `field field-${desc.type}` },
     el('label', { class: opts.hideLabel ? 'sr-only' : 'field-label', attrs: { for: id }, text: opts.label ?? desc.label }),
     el('span', { class: 'field-control' }, control, desc.unit ? el('span', { class: 'field-unit', text: desc.unit }) : null),
+    opts.defaultLine ? defaultLine(fieldId) : null,
     desc.help && !opts.hideLabel ? el('span', { class: 'field-help', text: desc.help }) : null,
-    el('span', { class: 'field-error', dataset: { error: fieldId }, attrs: { role: 'alert' }, hidden: true }));
+    errorNode(fieldId));
+}
+
+/** @param {FieldId} fieldId */
+const errorNode = (fieldId) => el('span', { class: 'field-error', dataset: { error: fieldId }, attrs: { role: 'alert' }, hidden: true });
+
+/**
+ * The weekday-default line of an entry field: default text, an "Overridden" badge and a reset button
+ * (FR-BAS-07, NV-IN-02; CD-4 §8.1). Text comes from the view-model.
+ * @param {FieldId} fieldId
+ */
+function defaultLine(fieldId) {
+  const key = `fields.${slug(fieldId)}`;
+  return el('span', { class: 'field-default' },
+    el('span', { class: 'field-default-text', dataset: { out: `${key}.defaultText` } }),
+    el('span', { class: 'badge badge-override', text: 'Overridden',
+      attrs: { title: 'Differs from the weekday table', 'aria-label': 'Overridden: differs from the weekday table' },
+      dataset: { show: `${key}.overridden` }, hidden: true }),
+    el('button', { class: 'link-button', text: '↺ Reset', attrs: { type: 'button', 'aria-label': 'Reset to the weekday default' },
+      dataset: { action: 'field.reset', target: fieldId, show: `${key}.offerReset` }, hidden: true }));
+}
+
+/**
+ * The combo field (CD-4 §6.4): a chip group (None, fixedOptions, known options, More…) filled by the page from
+ * the view-model's combos.<slug>.options, a "New name" text input, and a line with the chosen value.
+ * @param {FieldDescriptor} desc
+ * @param {FieldId} fieldId
+ * @param {FieldOpts} opts
+ */
+function comboField(desc, fieldId, opts) {
+  const key = slug(fieldId);
+  const labelId = `l-${key}`;
+  const input = textInput({ ...desc, placeholder: undefined }, fieldId, opts);
+  input.id = `f-${key}`;
+  return el('div', { class: 'field field-combo' },
+    el('span', { class: 'field-label', attrs: { id: labelId }, text: opts.label ?? desc.label }),
+    el('div', { class: 'combo-chips', attrs: { role: 'radiogroup', 'aria-labelledby': labelId }, dataset: { combo: fieldId } }),
+    el('button', { class: 'link-button combo-more', text: 'More…', attrs: { type: 'button' },
+      dataset: { action: 'combo.more', target: fieldId, show: `combos.${key}.more` }, hidden: true }),
+    el('label', { class: 'field-sublabel', attrs: { for: input.id }, text: 'New name' }),
+    el('span', { class: 'field-control' }, input),
+    el('span', { class: 'combo-summary', dataset: { out: `combos.${key}.summary` } }),
+    desc.help ? el('span', { class: 'field-help', text: desc.help }) : null,
+    errorNode(fieldId));
 }
 
 /**
@@ -289,8 +335,7 @@ export const FIELD_RENDERERS = Object.freeze({
   text: (desc, fieldId, opts) => fieldWrapper(desc, fieldId, opts, opts.multiline
     ? el('textarea', { class: 'input', attrs: { rows: '3', autocapitalize: 'sentences' }, dataset: { field: fieldId } })
     : textInput(desc, fieldId, opts)),
-  // TODO(IT-07): the combo chip group (None, fixedOptions, known options, More…) beside the "New name" input.
-  combo: (desc, fieldId, opts) => fieldWrapper(desc, fieldId, opts, textInput(desc, fieldId, opts)),
+  combo: comboField,
 });
 
 /**
@@ -311,7 +356,8 @@ export function renderField(desc, fieldId, opts = {}) {
 }
 
 /**
- * Writes a stored value into the control(s) of fieldId; used on load and after a write, never during typing.
+ * Writes a stored value into the control(s) of fieldId; used on load and after a discrete action, never during
+ * typing. Radios are checked when their value matches; a score group's fieldset is skipped.
  * Precise decimals hold the 1 dp summary at rest and keep the full text in data-full for focus (D4-06).
  * @param {ParentNode} root
  * @param {FieldId} fieldId
@@ -320,9 +366,12 @@ export function renderField(desc, fieldId, opts = {}) {
  */
 export function fillField(root, fieldId, value, desc) {
   for (const control of fieldControls(root, fieldId)) {
+    if (control.tagName === 'FIELDSET') continue;                 // a radio group's wrapper (scorePicker)
     const input = /** @type {HTMLInputElement} */ (control);
     const full = toInputText(value ?? null);
-    if (input.dataset.precise !== undefined) {
+    if (input.type === 'radio') {
+      input.checked = full !== '' && input.getAttribute('value') === full;
+    } else if (input.dataset.precise !== undefined) {
       input.dataset.full = full;
       input.value = desc.type === 'decimal' && typeof value === 'number' ? formatValue(value, 'dec1') : full;
     } else {

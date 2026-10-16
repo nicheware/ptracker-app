@@ -48,7 +48,28 @@
           </label>
           <button type="button" class="date-today" data-action="date.today" data-show="date.showToday">Today</button>
         </div>
+        <dl class="metrics-context"></dl>
+        <div class="day-badges"></div>
       </header>
+      <div class="scores card"></div>
+      <section class="results card" aria-labelledby="results-title" data-flag="complete:is-complete">
+        <h2 id="results-title" class="sr-only">Results</h2>
+        <dl class="metrics-results"></dl>
+        <p class="secondary">Low <span data-out="secondary.low"></span> · High <span data-out="secondary.high"></span> · Baseline <span data-out="secondary.baseline"></span></p>
+        <p class="sr-only" aria-live="polite" data-out="announce"></p>
+      </section>
+      <section class="panel" aria-labelledby="treatment-title">
+        <h2 id="treatment-title" class="panel-title">Treatment</h2>
+        <div class="card cat-fields"></div>
+      </section>
+      <section class="panel" aria-labelledby="other-title">
+        <h2 id="other-title" class="panel-title">Other</h2>
+        <div class="card">
+          <div class="chips" role="group" aria-label="Tags"></div>
+          <div class="other"></div>
+          <div class="comment"></div>
+        </div>
+      </section>
     </section>
     <section id="page-history" data-page="history" hidden aria-labelledby="history-title">
       <header class="page-header">
@@ -90,6 +111,7 @@
         <dl class="card about">
           <div class="about-row"><dt>App</dt><dd data-out="about.name"></dd></div>
           <div class="about-row"><dt>Version</dt><dd class="about-version" data-out="about.version"></dd></div>
+          <div class="about-row"><dt>Day records</dt><dd data-out="about.recordCount"></dd></div>
           <div class="about-row"><dt>Storage</dt><dd data-out="about.storage" data-flag="about.storageWarn:warn"></dd></div>
           <div class="about-row"><dt>Integrity</dt><dd data-out="about.integrity" data-flag="about.quarantineWarn:warn"></dd></div>
         </dl>

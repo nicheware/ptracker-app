@@ -3,7 +3,7 @@
 // panel (CD-4 §10.3).
 
 import { weekdayName } from '../core/dates.js';
-import { formatValue, kindLabel, kindShortLabel, toInputText } from '../core/format.js';
+import { formatValue, kindGlyph, kindLabel, kindShortLabel, toInputText } from '../core/format.js';
 
 /** @typedef {import('../core/types.js').WeekdayRow} WeekdayRow */
 /** @typedef {import('../core/types.js').WeekdayCode} WeekdayCode */
@@ -25,7 +25,7 @@ import { formatValue, kindLabel, kindShortLabel, toInputText } from '../core/for
  *                   retired: boolean, retiredText: string, status: string, canUp: boolean, canDown: boolean }>} tags
  *           kindShort and retiredText are shown; status is the full text for VoiceOver (FR-TAG-07)
  * @property {{ title: string, body: string, confirmLabel: string }} restore   restore-defaults dialog (FR-BAS-08)
- * @property {{ name: string, version: string, storage: string, storageWarn: boolean, integrity: string,
+ * @property {{ name: string, version: string, recordCount: string, storage: string, storageWarn: boolean, integrity: string,
  *             quarantineWarn: boolean }} about
  * @property {Object<string, string>} errors   FieldId → message (painted by data-error)
  */
@@ -50,6 +50,15 @@ function storageText(storage) {
 }
 
 /**
+ * The About "Day records" text (CD-4 §10.3 recordCount).
+ * @param {number} n
+ */
+function recordCountText(n) {
+  if (n === 0) return 'No day records yet';
+  return n === 1 ? '1 day record' : `${n} day records`;
+}
+
+/**
  * Startup-check text from the boot report (CD-4 §10.3, NFR-REL-04/05); '' before the report arrives.
  * @param {import('../core/types.js').BootReport|null|undefined} report
  */
@@ -58,9 +67,6 @@ function integrityText(report) {
   return `Startup check: ${report.derivedFixed} values recalculated, ${report.quarantined} records set aside `
     + `(${report.quarantineTotal} in total)`;
 }
-
-/** Tag-kind glyphs (CD-4 §9 tagChip), shown with the kind label, never colour alone (NFR-USE-04). */
-const KIND_GLYPHS = Object.freeze({ treatment: '▲', positive: '★', event: '●' });
 
 /**
  * FieldId → path-safe key: 'weekday.Mon.baseline' → 'weekday_Mon_baseline' (CD-4 §6.2 slug rule).
@@ -142,15 +148,15 @@ function orderedTags(tags) {
 
 /**
  * The Baseline page view-model (CD-4 §10.3).
- * @param {{ weekdays: WeekdayRow[], settings: Settings, tags: Tag[], category: Category, appName: string,
+ * @param {{ weekdays: WeekdayRow[], settings: Settings, tags: Tag[], category: Category,
+ *           records?: readonly import('../core/types.js').DayRecord[], appName: string,
  *           appVersion: string, bootReport?: import('../core/types.js').BootReport|null,
  *           storage?: boolean|null, errors?: Object<string, string> }} input
  *           storage: persisted() result, undefined while pending; errors: FieldId → message
  * @returns {BaselineVM}
  */
-export function baselineViewModel({ weekdays, settings, tags, category, appName, appVersion, bootReport, storage,
-  errors = {} }) {
-  // TODO(IT-07): about.recordCount from the record service's records.
+export function baselineViewModel({ weekdays, settings, tags, category, records = [], appName, appVersion, bootReport,
+  storage, errors = {} }) {
   // TODO(IT-11): renames (§10.4, NV-PRG-06).
   const id = category.id;
   const columns = weekdayColumns(category);
@@ -178,7 +184,7 @@ export function baselineViewModel({ weekdays, settings, tags, category, appName,
     kind: t.kind,
     kindLabel: kindLabel(t.kind),
     kindShort: kindShortLabel(t.kind),
-    glyph: KIND_GLYPHS[t.kind] ?? '',
+    glyph: kindGlyph(t.kind),
     retired: t.retired,
     retiredText: t.retired ? 'Retired' : '',
     status: `${kindLabel(t.kind)}${t.retired ? ' (retired)' : ''}`,
@@ -197,6 +203,7 @@ export function baselineViewModel({ weekdays, settings, tags, category, appName,
     about: {
       name: appName,
       version: appVersion,
+      recordCount: recordCountText(records.length),
       ...storageText(storage),
       integrity: integrityText(bootReport),
       quarantineWarn: (bootReport?.quarantineTotal ?? 0) > 0,

@@ -1,21 +1,36 @@
 // @ts-check
-// The one per-field validator: FieldSpec, specFromDescriptor, validateField and issue messages (CD-5 §3.5, §4, CC-23).
+// Validation: framework field specs, specFromDescriptor, validateField, validateRecord, validateDraft (CD-5 §3.2, §3.5, §4, CC-23).
 
 import { isScore, parseDecimal, countDp } from './numbers.js';
+import { isIsoDate } from './dates.js';
 
 /** @typedef {import('./types.js').FieldSpec} FieldSpec */
 /** @typedef {import('./types.js').FieldDescriptor} FieldDescriptor */
 /** @typedef {import('./types.js').FieldId} FieldId */
 /** @typedef {import('./types.js').ValidationIssue} ValidationIssue */
+/** @typedef {import('./types.js').ValidationResult} ValidationResult */
+/** @typedef {import('./types.js').DayRecord} DayRecord */
+/** @typedef {import('./types.js').Draft} Draft */
+/** @typedef {import('./types.js').Category} Category */
+/** @typedef {import('./types.js').IsoDate} IsoDate */
 
-// TODO(IT-07): validateRecord and validateDraft (CD-5 §4).
-
-/** Issue codes (CC-23 rev 1); categories may add their own. */
+/** Issue codes (CC-23 rev 1); categories may add their own. RECORD_SHAPE: an `other` or `comment` of the wrong
+ *  type, reachable only through corrupt data (the boot shape check normally quarantines it first). */
 export const ISSUE = Object.freeze({
   REQUIRED: 'REQUIRED', NOT_NUMBER: 'NOT_NUMBER', NOT_INTEGER: 'NOT_INTEGER', OUT_OF_RANGE: 'OUT_OF_RANGE',
   TOO_MANY_DP: 'TOO_MANY_DP', TOO_LONG: 'TOO_LONG', INVALID_DATE: 'INVALID_DATE', FUTURE_DATE: 'FUTURE_DATE',
-  DUPLICATE: 'DUPLICATE', RESERVED: 'RESERVED', TOO_MANY_FIELDS: 'TOO_MANY_FIELDS',
+  DUPLICATE: 'DUPLICATE', RESERVED: 'RESERVED', TOO_MANY_FIELDS: 'TOO_MANY_FIELDS', RECORD_SHAPE: 'RECORD_SHAPE',
 });
+
+/** Framework entry fields (CD-5 §3.2); re-exported by record-model.js. @type {ReadonlyArray<FieldSpec>} */
+export const FRAMEWORK_FIELDS = Object.freeze([
+  Object.freeze({ id: 'scores.morning', type: 'score', label: 'Morning', nullable: true, min: 0, max: 10 }),
+  Object.freeze({ id: 'scores.afternoon', type: 'score', label: 'Afternoon', nullable: true, min: 0, max: 10 }),
+  Object.freeze({ id: 'scores.evening', type: 'score', label: 'Evening', nullable: true, min: 0, max: 10 }),
+  Object.freeze({ id: 'baseline', type: 'decimal', label: 'Baseline', nullable: false, min: 0, max: 10 }),
+  Object.freeze({ id: 'other', type: 'tokens', label: 'Other', nullable: true }),
+  Object.freeze({ id: 'comment', type: 'text', label: 'Comment', nullable: true }),
+]);
 
 /**
  * Builds a FieldSpec from a descriptor (CD-5 §4): nullable = !required; copies min, max, maxDp, maxLength,
@@ -63,6 +78,7 @@ export function issueMessage(spec, code) {
       return `${label}: enter ${spec.max} or less.`;
     case ISSUE.INVALID_DATE: return 'This date is not valid.';
     case ISSUE.FUTURE_DATE: return 'Future dates cannot be entered.';
+    case ISSUE.RECORD_SHAPE: return `${label}: this value is damaged.`;
     default: return `${label}: this value is not valid.`;
   }
 }
@@ -146,4 +162,97 @@ export function validateField(spec, value) {
     default:
       throw new Error(`validateField: unknown field type "${spec.type}" for ${spec.id}`);
   }
+}
+
+/**
+ * The FieldSpec of an entry field ID: a FRAMEWORK_FIELDS entry, else the converted category descriptor
+ * (CD-5 §3.2). An unknown field is a programming error.
+ * @param {FieldId} fieldId
+ * @param {Category} category
+ * @returns {FieldSpec}
+ */
+export function fieldSpec(fieldId, category) {
+  const framework = FRAMEWORK_FIELDS.find((f) => f.id === fieldId);
+  if (framework) return framework;
+  const prefix = `category.${category.id}.`;
+  const desc = fieldId.startsWith(prefix)
+    ? category.entryFields.find((f) => f.key === fieldId.slice(prefix.length))
+    : undefined;
+  if (!desc) throw new Error(`fieldSpec: unknown field "${fieldId}"`);
+  return specFromDescriptor(desc, fieldId);
+}
+
+/** @param {unknown} v */
+const isToken = (v) => typeof v === 'string' && v !== '' && !/\s/.test(v);
+
+/** @param {string} field @param {string} code @param {string} label */
+const issue = (field, code, label) => ({ field, code, message: issueMessage({ id: field, type: 'text', label, nullable: true }, code) });
+
+/**
+ * Validates a whole record: date, scores, baseline, Other tokens, comment, each category entry field by its
+ * descriptor, then category.validate (CD-5 §4, CC-23). An incomplete record is valid.
+ * @param {DayRecord} record
+ * @param {Category} category
+ * @param {{ today?: IsoDate }} [opts]   with today, a later date is a FUTURE_DATE issue (CC-23 rev 1)
+ * @returns {ValidationResult}
+ */
+export function validateRecord(record, category, opts = {}) {
+  /** @type {ValidationIssue[]} */
+  const issues = [];
+  const r = /** @type {any} */ (record) ?? {};
+  if (!isIsoDate(r.date)) issues.push(issue('date', ISSUE.INVALID_DATE, 'Date'));
+  else if (opts.today !== undefined && r.date > opts.today) issues.push(issue('date', ISSUE.FUTURE_DATE, 'Date'));
+  for (const spec of FRAMEWORK_FIELDS) {
+    if (spec.type === 'score' || spec.id === 'baseline') {
+      const value = spec.type === 'score' ? r.scores?.[spec.id.slice('scores.'.length)] ?? null : r.baseline;
+      const res = validateField(spec, value);
+      if (!res.ok) issues.push(res.issue);
+    }
+  }
+  if (!Array.isArray(r.other) || !r.other.every(isToken)) issues.push(issue('other', ISSUE.RECORD_SHAPE, 'Other'));
+  if (typeof r.comment !== 'string') issues.push(issue('comment', ISSUE.RECORD_SHAPE, 'Comment'));
+  const ns = r.category?.[category.id] ?? {};
+  for (const desc of category.entryFields) {
+    const fieldId = `category.${category.id}.${desc.key}`;
+    const res = validateField(specFromDescriptor(desc, fieldId), ns[desc.key] ?? null);
+    if (!res.ok) issues.push(res.issue);
+  }
+  issues.push(...(category.validate?.(record) ?? []));
+  return { ok: issues.length === 0, issues };
+}
+
+/**
+ * validateRecord(draft.record) plus one issue per draft.invalid entry, re-derived from its raw text (CD-5 §4).
+ * The invalid entries come first, so the message shown matches the text still in the control.
+ * @param {Draft} draft
+ * @param {Category} category
+ * @returns {ValidationResult}
+ */
+export function validateDraft(draft, category) {
+  /** @type {ValidationIssue[]} */
+  const issues = [];
+  for (const [fieldId, raw] of Object.entries(draft.invalid ?? {})) {
+    const spec = fieldSpec(fieldId, category);
+    const res = validateField(spec, raw);
+    if (!res.ok) {
+      issues.push(res.issue);
+      continue;
+    }
+    const candidate = withField(draft.record, fieldId, res.value);
+    issues.push(...(category.validate?.(candidate) ?? []).filter((i) => i.field === fieldId));
+  }
+  issues.push(...validateRecord(draft.record, category).issues);
+  return { ok: issues.length === 0, issues };
+}
+
+/**
+ * Copy of a record with one path replaced (CC-06).
+ * @param {any} obj
+ * @param {string} fieldId
+ * @param {unknown} value
+ * @returns {any}
+ */
+function withField(obj, fieldId, value) {
+  const [head, ...rest] = fieldId.split('.');
+  return { ...obj, [head]: rest.length === 0 ? value : withField(obj?.[head] ?? {}, rest.join('.'), value) };
 }

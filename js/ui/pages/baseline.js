@@ -20,6 +20,7 @@ import { settingsFieldSpec } from '../../core/settings-model.js';
  * @property {import('../../core/types.js').SettingsService} settingsService
  * @property {import('../../core/types.js').StoragePersist} storagePersist
  * @property {import('../../core/events.js').Emitter} bus
+ * @property {{ all(): readonly import('../../core/types.js').DayRecord[] }} recordService
  * @property {string} appName
  * @property {string} appVersion
  */
@@ -77,7 +78,7 @@ export function createBaselinePage(deps) {
     if (!root) return;
     const vm = baselineViewModel({
       weekdays: service.getWeekdays(), settings: service.getSettings(), tags: service.getTags(), category,
-      appName: deps.appName, appVersion: deps.appVersion, bootReport, storage, errors,
+      records: deps.recordService.all(), appName: deps.appName, appVersion: deps.appVersion, bootReport, storage, errors,
     });
     lastVm = vm;
     const list = /** @type {HTMLElement} */ (root.querySelector('.tag-list'));
@@ -287,7 +288,7 @@ export function createBaselinePage(deps) {
         if (visible) render();
       });
       bus.on(EVENTS.DATA_CHANGED, ({ scope }) => {
-        if (visible && scope !== 'records') render();
+        if (visible) render();
       });
     },
     show() {
