@@ -3,7 +3,7 @@
 
 import { isAppError } from '../core/errors.js';
 
-// The save, delete, removeAll, export and settings contexts arrive with their pages (IT-06..IT-10).
+// The save, delete, removeAll and export contexts arrive with their pages (IT-07..IT-10).
 
 /** '<context>.<CODE>' or '<CODE>' → sentence. */
 export const MESSAGES = Object.freeze({
@@ -16,6 +16,8 @@ export const MESSAGES = Object.freeze({
   CATEGORY_INVALID: 'This version of PTracker has a setup problem and can\'t start. Nothing was changed. Reload, or reinstall when an update is available.',
   TX_FAILED: 'PTracker couldn\'t write to its storage. Nothing was changed. Please try again.',
   QUOTA_EXCEEDED: 'The device is out of storage. Free some space, then try again.',
+  // Baseline & settings writes (CD-4 §10.2)
+  'settings.TX_FAILED': 'Not saved. Nothing was changed. Please try again.',
   UNKNOWN: 'Something went wrong. Your saved data is safe. Reload PTracker.',
 });
 
@@ -25,6 +27,8 @@ export const NOTICES = Object.freeze({
   UPDATE_HELD_BACK: 'Your last change isn\'t saved yet, so the update has been held back.',
   DB_VERSIONCHANGE: 'PTracker was updated in another window. Reload.',
   QUARANTINED: 'Some saved data couldn\'t be read and was set aside. See Baseline → About.',
+  SAVED: 'Saved',
+  DEFAULTS_RESTORED: 'Defaults restored',
 });
 
 /** Action labels used by the shell's toasts. */

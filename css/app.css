@@ -290,6 +290,202 @@ main {
   color: var(--c-tag-event);
 }
 
+.tag-row .tag-code {
+  border: 1px solid var(--c-tag-event);
+  border-radius: var(--radius);
+  padding: 0 var(--space-2);
+  min-width: 3.5em;
+  text-align: center;
+}
+
+.kind-treatment .tag-code {
+  border-color: var(--c-tag-treatment);
+}
+
+.kind-positive .tag-code {
+  border-color: var(--c-tag-positive);
+}
+
+.tag-row {
+  align-items: center;
+}
+
+.tag-edit {
+  margin-left: auto;
+  padding: var(--space-1) var(--space-3);
+}
+
+.panel-button {
+  display: block;
+  width: 100%;
+  margin: calc(-1 * var(--space-3)) 0 var(--space-5);
+  text-align: left;
+}
+
+.danger-text {
+  color: var(--c-danger);
+}
+
+/* ---------- Form controls (CD-4 §6.4, §12.2) ---------- */
+.field {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.field-label {
+  color: var(--c-text);
+  padding: 0;
+}
+
+.field-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.field-unit,
+.field-help {
+  color: var(--c-muted);
+  font-size: 0.875rem;
+}
+
+.field-error {
+  color: var(--c-danger);
+  font-size: 0.875rem;
+  white-space: normal;
+  text-align: left;
+}
+
+.input {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.input:focus {
+  outline: 2px solid var(--c-accent);
+  outline-offset: -1px;
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--c-danger);
+}
+
+.input:disabled {
+  color: var(--c-muted);
+}
+
+.weekday-table .field {
+  padding: 0;
+}
+
+.weekday-table .input {
+  min-width: 4.5em;
+  text-align: right;
+}
+
+.weekday-table .field-error {
+  max-width: 7em;
+}
+
+.settings-list .field + .field {
+  border-top: 1px solid var(--c-border);
+}
+
+.settings-list .input {
+  max-width: 8em;
+}
+
+.kind-group {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.kind-option,
+.switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+}
+
+.kind-option input,
+.switch input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--c-accent);
+}
+
+/* ---------- Dialogs (CD-4 §6.5, §12.2) ---------- */
+.dialog {
+  width: min(calc(100vw - 2 * var(--space-4)), 420px);
+  max-height: calc(100vh - 2 * var(--space-5));
+  overflow-y: auto;
+  border: 0;
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+
+.dialog::backdrop {
+  background: var(--c-shadow);
+}
+
+.dialog-title {
+  font-size: 1.125rem;
+  margin: 0 0 var(--space-3);
+}
+
+.dialog-body {
+  margin-bottom: var(--space-4);
+}
+
+.dialog-row,
+.dialog-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.dialog-row > *,
+.dialog-actions > * {
+  flex: 1;
+}
+
+.dialog-button.primary {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: var(--c-on-accent);
+  font-weight: 600;
+}
+
+.dialog-button.primary.danger {
+  background: var(--c-danger);
+  border-color: var(--c-danger);
+}
+
+button:disabled {
+  color: var(--c-muted);
+  opacity: 0.5;
+}
+
+@media (max-width: 360px) {
+  .dialog-actions {
+    flex-direction: column-reverse;
+  }
+}
+
 .fatal {
   max-width: var(--content-max);
   margin: 0 auto;

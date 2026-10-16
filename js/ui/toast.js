@@ -10,6 +10,7 @@ import { el } from './dom.js';
  * @property {{label: string, run: () => void}|null} action   e.g. Retry, Reload
  * @property {boolean} sticky              stays until acted on or replaced
  * @property {string|null} key             a new toast with the same key replaces the old one
+ * @property {number} [ms]                 display time of a non-sticky toast (e.g. "Saved" 1.5 s, CD-4 §10.2)
  */
 
 const SHORT_MS = 2500;
@@ -70,7 +71,7 @@ export function createToaster({
 
     let timer = null;
     if (!toast.sticky) {
-      timer = setTimer(() => remove(key), action ? WITH_ACTION_MS : SHORT_MS);
+      timer = setTimer(() => remove(key), toast.ms ?? (action ? WITH_ACTION_MS : SHORT_MS));
       transientKey = key;
     }
     visible.set(key, { node, timer });

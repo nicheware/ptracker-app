@@ -103,6 +103,20 @@
  * @property {string} message  user-facing English sentence
  */
 /** @typedef {{ ok: boolean, issues: ValidationIssue[] }} ValidationResult  (CC-23) */
+/** @typedef {'tap'|'text'} InputKind  save kind of an input (CC-17 rev 1) */
+/**
+ * @typedef {Object} FieldSpec  the per-field validation spec (CC-17, CC-23 rev 1, CD-5 §3.1)
+ * @property {FieldId} id
+ * @property {'score'|'decimal'|'int'|'text'|'combo'|'tokens'} type
+ * @property {string} label           used in messages
+ * @property {boolean} nullable       = !descriptor.required
+ * @property {number} [min]
+ * @property {number} [max]
+ * @property {number} [maxDp]
+ * @property {number} [maxLength]
+ * @property {string[]} [fixedOptions]
+ * @property {boolean} [weekdayDefault]
+ */
 
 // ── Migrations (CC-26) ──────────────────────────────────────────────────────────────────────────────
 
@@ -267,7 +281,8 @@
 // ── Services (CC-41) ────────────────────────────────────────────────────────────────────────────────
 
 /**
- * @typedef {Object} SettingsService  (CC-41). Load and read side; IT-06 adds the writes, IT-10 markExported.
+ * @typedef {Object} SettingsService  (CC-41). Writes resolve with a ValidationResult (nothing written when !ok) and
+ *           reject only with AppError. IT-10 adds markExported.
  * @property {() => Promise<void>} load            reads three stores, seeds/repairs, fills caches (CC-29 step 4)
  * @property {() => Promise<void>} reload          re-read after restore (CC-30)
  * @property {() => Settings} getSettings
@@ -276,6 +291,14 @@
  * @property {(code: WeekdayCode) => WeekdayRow} getWeekday
  * @property {() => Tag[]} getTags
  * @property {(code: string) => Tag|null} getTag
+ * @property {(code: WeekdayCode, patch: { baseline?: number|string, values?: Object<string, number|string|null> })
+ *             => Promise<ValidationResult>} updateWeekday
+ * @property {(patch: Object<string, number|string|null>) => Promise<ValidationResult>} updateCategorySettings
+ * @property {(tag: SeedTag) => Promise<ValidationResult>} addTag
+ * @property {(defs: SeedTag[]) => Promise<ValidationResult & { added: string[] }>} addTags
+ * @property {(code: string, patch: { label?: string, kind?: TagKind, retired?: boolean }) => Promise<ValidationResult>} updateTag
+ * @property {(codes: string[]) => Promise<void>} reorderTags
+ * @property {() => Promise<void>} restoreDefaults
  */
 
 export {};

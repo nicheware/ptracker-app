@@ -1,9 +1,11 @@
 // @ts-check
-// Settings, weekday-table and tag service: load with seeding and repair, synchronous cached reads (CD-1 §11, CC-41).
+// Settings, weekday-table and tag service: load with seeding and repair, cached reads, serialised writes (CD-1 §11, CC-41).
 
 import { WEEKDAYS } from '../core/dates.js';
 import { SETTINGS_ID } from '../core/schema.js';
-import { planSeedRepair } from '../core/settings-model.js';
+import { EVENTS } from '../core/events.js';
+import { planSeedRepair, applyWeekdayPatch, applyCategorySettingsPatch, makeTag, makeTags, applyTagPatch, reorder,
+  restoredDefaults } from '../core/settings-model.js';
 
 /** @typedef {import('../core/types.js').Gateway} Gateway */
 /** @typedef {import('../core/types.js').Category} Category */
@@ -13,9 +15,16 @@ import { planSeedRepair } from '../core/settings-model.js';
 /** @typedef {import('../core/types.js').Tag} Tag */
 /** @typedef {import('../core/types.js').WriteOp} WriteOp */
 /** @typedef {import('../core/types.js').SettingsService} SettingsService */
+/** @typedef {import('../core/types.js').ValidationIssue} ValidationIssue */
+/** @typedef {import('../core/types.js').ValidationResult} ValidationResult */
+/** @typedef {{ settings: Settings, weekdays: WeekdayRow[], tags: Tag[] }} Cache */
+/** @typedef {'weekdays'|'tags'|'settings'} Scope */
+/**
+ * A planned write: the ops, the cache after them and the data:changed scopes; or the issues when invalid.
+ * @typedef {{ ok: true, ops: WriteOp[], next: Cache, scopes: Scope[], extra?: object }
+ *         | { ok: false, issues: ValidationIssue[] }} Plan
+ */
 
-// TODO(IT-06): updateWeekday, updateCategorySettings, addTag, addTags, updateTag, reorderTags, restoreDefaults on a
-// private promise chain (CD-1 §11.1, §11.4), emitting data:changed after the cache is updated.
 // TODO(IT-10): markExported (CD-1 §11.1, CC-41).
 
 /**
@@ -54,9 +63,11 @@ const tagOrder = (a, b) => a.order - b.order || (a.code < b.code ? -1 : a.code >
  * @param {{ db: Gateway, category: Category, clock: Clock, bus: import('../core/events.js').Emitter }} deps
  * @returns {SettingsService}
  */
-export function createSettingsService({ db, category, clock }) {
-  /** @type {{ settings: Settings, weekdays: WeekdayRow[], tags: Tag[] }|null} */
+export function createSettingsService({ db, category, clock, bus }) {
+  /** @type {Cache|null} */
   let cache = null;
+  /** Tail of the write chain (CD-1 §11.4); never rejects. @type {Promise<unknown>} */
+  let tail = Promise.resolve();
 
   const loaded = () => {
     if (!cache) throw new Error('settings service: load() has not completed');
@@ -80,9 +91,117 @@ export function createSettingsService({ db, category, clock }) {
     });
   }
 
+  /**
+   * Runs one write after the previous one has settled (CD-1 §11.4). The plan is computed from the cache as left by
+   * the previous write; a rejected db.write leaves the cache untouched and rejects with its AppError.
+   * @param {(current: Cache) => Plan} plan
+   * @returns {Promise<ValidationResult & { extra?: object }>}
+   */
+  function step(plan) {
+    const run = tail.then(async () => {
+      const res = plan(loaded());
+      if (!res.ok) return { ok: false, issues: res.issues };
+      if (res.ops.length > 0) await db.write(res.ops);
+      cache = deepFreeze({ ...res.next, tags: [...res.next.tags].sort(tagOrder) });
+      for (const scope of res.scopes) bus.emit(EVENTS.DATA_CHANGED, { scope, dates: null });
+      return { ok: true, issues: [], ...(res.extra ? { extra: res.extra } : {}) };
+    });
+    tail = run.catch(() => {});
+    return run;
+  }
+
+  /** @param {Tag[]} tags @param {Tag[]} changed */
+  const replaceTags = (tags, changed) => tags.map((t) => changed.find((c) => c.code === t.code) ?? t);
+
+  /** @type {SettingsService['updateWeekday']} */
+  function updateWeekday(code, patch) {
+    return step((c) => {
+      const row = c.weekdays.find((r) => r.weekday === code);
+      if (!row) throw new Error(`updateWeekday: unknown weekday ${code}`);
+      const res = applyWeekdayPatch(row, patch, category);
+      if (!res.ok) return res;
+      return { ok: true, ops: [{ type: 'put', store: 'weekdays', value: res.row }], scopes: ['weekdays'],
+        next: { ...c, weekdays: c.weekdays.map((r) => (r.weekday === code ? res.row : r)) } };
+    });
+  }
+
+  /** @type {SettingsService['updateCategorySettings']} */
+  function updateCategorySettings(patch) {
+    return step((c) => {
+      const res = applyCategorySettingsPatch(c.settings, patch, category);
+      if (!res.ok) return res;
+      return { ok: true, ops: [{ type: 'put', store: 'settings', value: res.settings }], scopes: ['settings'],
+        next: { ...c, settings: res.settings } };
+    });
+  }
+
+  /** @type {SettingsService['addTag']} */
+  function addTag(tag) {
+    return step((c) => {
+      const res = makeTag(tag, c.tags);
+      if (!res.ok) return res;
+      return { ok: true, ops: [{ type: 'put', store: 'tags', value: res.tag }], scopes: ['tags'],
+        next: { ...c, tags: [...c.tags, res.tag] } };
+    });
+  }
+
+  /** @type {SettingsService['addTags']} */
+  async function addTags(defs) {
+    const r = await step((c) => {
+      const res = makeTags(defs, c.tags);
+      if (!res.ok) return res;
+      return { ok: true, ops: res.tags.map((t) => ({ type: 'put', store: 'tags', value: t })),
+        scopes: res.tags.length > 0 ? ['tags'] : [], next: { ...c, tags: [...c.tags, ...res.tags] },
+        extra: { added: res.added } };
+    });
+    const added = /** @type {{ added?: string[] }} */ (r.extra ?? {}).added ?? [];
+    return { ok: r.ok, issues: r.issues, added };
+  }
+
+  /** @type {SettingsService['updateTag']} */
+  function updateTag(code, patch) {
+    return step((c) => {
+      const tag = c.tags.find((t) => t.code === code);
+      if (!tag) throw new Error(`updateTag: unknown tag ${code}`);
+      const res = applyTagPatch(tag, patch);
+      if (!res.ok) return res;
+      return { ok: true, ops: [{ type: 'put', store: 'tags', value: res.tag }], scopes: ['tags'],
+        next: { ...c, tags: replaceTags(c.tags, [res.tag]) } };
+    });
+  }
+
+  /** @type {SettingsService['reorderTags']} */
+  async function reorderTags(codes) {
+    await step((c) => {
+      const changed = reorder(c.tags, codes).filter((t) => c.tags.find((o) => o.code === t.code)?.order !== t.order);
+      return { ok: true, ops: changed.map((t) => ({ type: 'put', store: 'tags', value: t })),
+        scopes: changed.length > 0 ? ['tags'] : [], next: { ...c, tags: replaceTags(c.tags, changed) } };
+    });
+  }
+
+  /** FR-BAS-08: weekday table and category settings in one write; tags, export stamps and records untouched (Q5). */
+  async function restoreDefaults() {
+    await step((c) => {
+      const res = restoredDefaults(c, category);
+      /** @type {WriteOp[]} */
+      const ops = [
+        ...res.weekdays.map((r) => /** @type {WriteOp} */ ({ type: 'put', store: 'weekdays', value: r })),
+        { type: 'put', store: 'settings', value: res.settings },
+      ];
+      return { ok: true, ops, scopes: ['weekdays', 'settings'], next: { ...c, ...res } };
+    });
+  }
+
   return {
     load,
     reload: load,
+    updateWeekday,
+    updateCategorySettings,
+    addTag,
+    addTags,
+    updateTag,
+    reorderTags,
+    restoreDefaults,
     getSettings: () => loaded().settings,
     getCategorySettings: () => loaded().settings.category[category.id],
     getWeekdays: () => [...loaded().weekdays],

@@ -8,6 +8,7 @@ import { createStoragePersist } from './infra/storage-persist.js';
 import { createEmitter, EVENTS } from './core/events.js';
 import { createSettingsService } from './services/settings-service.js';
 import { startShell, showFatal } from './ui/shell.js';
+import { assertRenderable } from './ui/dom.js';
 import { getCategory, DEFAULT_CATEGORY_ID } from './categories/registry.js';
 import { APP_NAME, VERSION } from './version.js';
 
@@ -21,7 +22,7 @@ async function main() {
   let category, bootReport, settingsService;
   try {                                                              // fatal list: CC-29 rev 1
     category = getCategory(DEFAULT_CATEGORY_ID);                     // UNKNOWN_CATEGORY / CATEGORY_INVALID
-    // TODO(IT-06): assertRenderable(category).
+    assertRenderable(category);                                      // CATEGORY_INVALID (CC-28 rev 1)
     const db = await openDb({ indexedDB: globalThis.indexedDB,       // step 2
       onVersionChange: () => bus.emit(EVENTS.DB_VERSIONCHANGE, {}) });
     bootReport = await db.boot({ category, clock, appVersion: VERSION });   // step 3

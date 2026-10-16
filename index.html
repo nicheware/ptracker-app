@@ -74,11 +74,16 @@
       </section>
       <section class="panel" aria-labelledby="category-settings-title">
         <h2 id="category-settings-title" class="panel-title" data-out="categoryTitle"></h2>
-        <dl class="card about settings-list"></dl>
+        <div class="card settings-list"></div>
       </section>
       <section class="panel" aria-labelledby="tags-title">
         <h2 id="tags-title" class="panel-title">Tags</h2>
         <ul class="card tag-list"></ul>
+        <button type="button" class="panel-button" data-action="tag.add">+ Add tag</button>
+      </section>
+      <section class="panel" aria-labelledby="defaults-title">
+        <h2 id="defaults-title" class="panel-title">Defaults</h2>
+        <button type="button" class="panel-button danger-text" data-action="defaults.restore">Restore default baselines and settings…</button>
       </section>
       <section class="panel" aria-labelledby="about-title">
         <h2 id="about-title" class="panel-title">About</h2>
@@ -97,6 +102,49 @@
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="toasts-alert" class="toasts" role="alert"></div>
+
+  <dialog id="dlg-confirm" class="dialog" aria-labelledby="dlg-confirm-title" aria-describedby="dlg-confirm-body">
+    <h2 id="dlg-confirm-title" class="dialog-title" data-role="title"></h2>
+    <p id="dlg-confirm-body" class="dialog-body" data-role="body"></p>
+    <div class="dialog-actions">
+      <button type="button" class="dialog-button" data-role="cancel">Cancel</button>
+      <button type="button" class="dialog-button primary" data-role="confirm"></button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-tag" class="dialog" aria-labelledby="dlg-tag-title">
+    <h2 id="dlg-tag-title" class="dialog-title" data-out="title"></h2>
+    <div class="field">
+      <label class="field-label" for="tag-code">Code</label>
+      <span class="field-control"><input id="tag-code" class="input" type="text" data-field="tag.code" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="next"></span>
+      <span class="field-help">Short, no spaces, case-sensitive. It can't be changed later.</span>
+      <span class="field-error" data-error="tag.code" role="alert" hidden></span>
+    </div>
+    <div class="field">
+      <label class="field-label" for="tag-label">Label</label>
+      <span class="field-control"><input id="tag-label" class="input" type="text" data-field="tag.label" autocomplete="off" autocapitalize="sentences" enterkeyhint="done"></span>
+      <span class="field-error" data-error="tag.label" role="alert" hidden></span>
+    </div>
+    <fieldset class="field kind-group" data-field="tag.kind">
+      <legend class="field-label">Kind</legend>
+      <label class="kind-option kind-treatment"><input type="radio" name="tag-kind" value="treatment"><span class="tag-glyph" aria-hidden="true">▲</span> Treatment</label>
+      <label class="kind-option kind-positive"><input type="radio" name="tag-kind" value="positive"><span class="tag-glyph" aria-hidden="true">★</span> Positive</label>
+      <label class="kind-option kind-event"><input type="radio" name="tag-kind" value="event"><span class="tag-glyph" aria-hidden="true">●</span> Event</label>
+      <span class="field-error" data-error="tag.kind" role="alert" hidden></span>
+    </fieldset>
+    <div class="field" data-show="isEdit">
+      <label class="switch"><input type="checkbox" role="switch" data-field="tag.retired"> Retired</label>
+      <span class="field-help">Retired tags still show on past days.</span>
+    </div>
+    <div class="dialog-row" data-show="isEdit">
+      <button type="button" class="dialog-button" data-action="tag.up" data-attr="upDisabled:disabled">Move up</button>
+      <button type="button" class="dialog-button" data-action="tag.down" data-attr="downDisabled:disabled">Move down</button>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="dialog-button" data-action="tag.cancel">Cancel</button>
+      <button type="button" class="dialog-button primary" data-action="tag.save">Save</button>
+    </div>
+  </dialog>
 
   <nav id="tabbar" class="tabbar" aria-label="Pages" hidden>
     <a href="#entry" data-tab="entry">

@@ -1,6 +1,6 @@
 // @ts-check
-// Baseline view-model: weekday table, category settings, tag list and About panel (CD-4 §10.3). Read-only parts
-// so far: IT-06 adds the editable cells and errors.
+// Baseline view-model: weekday table, category settings, tag list, restore-defaults text, errors and the About
+// panel (CD-4 §10.3).
 
 import { weekdayName } from '../core/dates.js';
 import { formatValue, kindLabel, toInputText } from '../core/format.js';
@@ -12,7 +12,7 @@ import { formatValue, kindLabel, toInputText } from '../core/format.js';
 /** @typedef {import('../core/types.js').Category} Category */
 /** @typedef {import('../core/types.js').FieldDescriptor} FieldDescriptor */
 
-/** @typedef {{ summary: string }} CellVM */
+/** @typedef {{ summary: string, edit: string }} CellVM  summary at rest; edit = the full-precision input text */
 /**
  * @typedef {Object} BaselineVM
  * @property {Array<{ id: string, label: string }>} columns   weekday table columns after Day: Baseline, then
@@ -21,10 +21,12 @@ import { formatValue, kindLabel, toInputText } from '../core/format.js';
  *           cells keyed by slug(FieldId), e.g. 'weekday_Mon_baseline' (CC-23 field ids)
  * @property {string} categoryTitle        `${category.name} settings`
  * @property {Object<string, CellVM & { label: string }>} settings   keyed by slug(FieldId), in descriptor order
- * @property {Array<{ code: string, label: string, kindLabel: string, glyph: string, retired: boolean,
- *                   canUp: boolean, canDown: boolean }>} tags
+ * @property {Array<{ code: string, label: string, kind: string, kindLabel: string, glyph: string, retired: boolean,
+ *                   status: string, canUp: boolean, canDown: boolean }>} tags
+ * @property {{ title: string, body: string, confirmLabel: string }} restore   restore-defaults dialog (FR-BAS-08)
  * @property {{ name: string, version: string, storage: string, storageWarn: boolean, integrity: string,
  *             quarantineWarn: boolean }} about
+ * @property {Object<string, string>} errors   FieldId → message (painted by data-error)
  */
 
 /** About-panel storage texts (CD-4 §10.3, NFR-REL-02). */
@@ -66,25 +68,60 @@ const KIND_GLYPHS = Object.freeze({ treatment: '▲', positive: '★', event: '�
 const slug = (fieldId) => fieldId.replace(/\./g, '_');
 
 /**
- * Read-only text of a weekday-extension value: as entered plus the unit; blank → '' (CD-4 §10.3).
+ * Text of a weekday-extension value: as entered; blank → '' (CD-4 §10.3). The unit is shown beside the control.
  * @param {unknown} value
- * @param {FieldDescriptor} desc
  */
-function weekdayValueSummary(value, desc) {
+function weekdayValueCell(value) {
   const text = toInputText(/** @type {number|string|null} */ (value ?? null));
-  return text === '' ? '' : desc.unit ? `${text} ${desc.unit}` : text;
+  return { summary: text, edit: text };
 }
 
 /**
- * Read-only text of a category setting: decimals at 1 dp (D4-06), others as entered.
+ * A precise decimal (baselines, decimal settings): 1 dp at rest, full precision for editing (D4-06, FR-BAS-04).
  * @param {unknown} value
- * @param {FieldDescriptor} desc
+ * @param {FieldDescriptor['type']} type
+ * @returns {CellVM}
  */
-function settingSummary(value, desc) {
-  if (value == null || value === '') return '';
-  return desc.type === 'decimal' && typeof value === 'number'
-    ? formatValue(value, 'dec1')
-    : toInputText(/** @type {number|string} */ (value));
+function preciseCell(value, type) {
+  if (value == null || value === '') return { summary: '', edit: '' };
+  const edit = toInputText(/** @type {number|string} */ (value));
+  return { summary: type === 'decimal' && typeof value === 'number' ? formatValue(value, 'dec1') : edit, edit };
+}
+
+/**
+ * Weekday table columns after Day: Baseline, then the category's weekday fields; the unit goes in the label
+ * because the cells are inputs (CD-4 §10.1).
+ * @param {Category} category
+ * @returns {Array<{ id: string, label: string }>}
+ */
+export function weekdayColumns(category) {
+  return [
+    { id: 'baseline', label: 'Baseline' },
+    ...category.weekdayFields.map((f) => ({ id: slug(f.key), label: f.unit ? `${f.label} (${f.unit})` : f.label })),
+  ];
+}
+
+/**
+ * 'a', 'a and b', 'a, b and c'.
+ * @param {string[]} items
+ */
+function joinAnd(items) {
+  return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+/**
+ * The restore-defaults confirmation, built only from descriptor labels so no framework file names a category
+ * word (CD-4 §10.2, CC-38 rev 1 category-boundary).
+ * @param {Category} category
+ */
+export function restoreDefaultsText(category) {
+  const labels = ['weekday baselines', ...category.weekdayFields.map((f) => f.label),
+    ...category.settingsFields.map((f) => f.label)];
+  return {
+    title: 'Restore defaults?',
+    body: `Restore the default ${joinAnd(labels)}? Tags and day records are not changed.`,
+    confirmLabel: 'Restore defaults',
+  };
 }
 
 /**
@@ -100,26 +137,24 @@ function orderedTags(tags) {
 }
 
 /**
- * The Baseline page view-model (CD-4 §10.3), read-only part.
+ * The Baseline page view-model (CD-4 §10.3).
  * @param {{ weekdays: WeekdayRow[], settings: Settings, tags: Tag[], category: Category, appName: string,
  *           appVersion: string, bootReport?: import('../core/types.js').BootReport|null,
- *           storage?: boolean|null }} input   storage: persisted() result, undefined while pending
+ *           storage?: boolean|null, errors?: Object<string, string> }} input
+ *           storage: persisted() result, undefined while pending; errors: FieldId → message
  * @returns {BaselineVM}
  */
-export function baselineViewModel({ weekdays, settings, tags, category, appName, appVersion, bootReport, storage }) {
+export function baselineViewModel({ weekdays, settings, tags, category, appName, appVersion, bootReport, storage,
+  errors = {} }) {
   // TODO(IT-07): about.recordCount from the record service's records.
-  // TODO(IT-06): errors (inline validation) and editable cells.
   // TODO(IT-11): renames (§10.4, NV-PRG-06).
   const id = category.id;
-  const columns = [
-    { id: 'baseline', label: 'Baseline' },
-    ...category.weekdayFields.map((f) => ({ id: slug(f.key), label: f.label })),
-  ];
+  const columns = weekdayColumns(category);
   const weekdayVms = weekdays.map((row) => {
     /** @type {Object<string, CellVM>} */
-    const cells = { [slug(`weekday.${row.weekday}.baseline`)]: { summary: formatValue(row.baseline, 'dec1') } };
+    const cells = { [slug(`weekday.${row.weekday}.baseline`)]: preciseCell(row.baseline, 'decimal') };
     for (const f of category.weekdayFields) {
-      cells[slug(`weekday.${row.weekday}.${f.key}`)] = { summary: weekdayValueSummary(row.category?.[id]?.[f.key], f) };
+      cells[slug(`weekday.${row.weekday}.${f.key}`)] = weekdayValueCell(row.category?.[id]?.[f.key]);
     }
     return { code: row.weekday, name: weekdayName(row.weekday), cells };
   });
@@ -128,7 +163,7 @@ export function baselineViewModel({ weekdays, settings, tags, category, appName,
   /** @type {Object<string, CellVM & { label: string }>} */
   const settingsVm = {};
   for (const f of category.settingsFields) {
-    settingsVm[slug(`settings.category.${id}.${f.key}`)] = { label: f.label, summary: settingSummary(cs[f.key], f) };
+    settingsVm[slug(`settings.category.${id}.${f.key}`)] = { label: f.label, ...preciseCell(cs[f.key], f.type) };
   }
 
   const ordered = orderedTags(tags);
@@ -136,9 +171,11 @@ export function baselineViewModel({ weekdays, settings, tags, category, appName,
   const tagVms = ordered.map((t, i) => ({
     code: t.code,
     label: t.label,
+    kind: t.kind,
     kindLabel: kindLabel(t.kind),
     glyph: KIND_GLYPHS[t.kind] ?? '',
     retired: t.retired,
+    status: `${kindLabel(t.kind)}${t.retired ? ' (retired)' : ''}`,
     canUp: !t.retired && i > 0,
     canDown: !t.retired && i < activeCount - 1,
   }));
@@ -149,6 +186,8 @@ export function baselineViewModel({ weekdays, settings, tags, category, appName,
     categoryTitle: `${category.name} settings`,
     settings: settingsVm,
     tags: tagVms,
+    restore: restoreDefaultsText(category),
+    errors: { ...errors },
     about: {
       name: appName,
       version: appVersion,
@@ -156,5 +195,20 @@ export function baselineViewModel({ weekdays, settings, tags, category, appName,
       integrity: integrityText(bootReport),
       quarantineWarn: (bootReport?.quarantineTotal ?? 0) > 0,
     },
+  };
+}
+
+/**
+ * The tag dialog (CD-4 §10.1): title, edit-only parts, Move up / Move down state and the errors by slot
+ * ('tag.code', 'tag.label', 'tag.kind').
+ * @param {{ tag: BaselineVM['tags'][number]|null, errors?: Object<string, string> }} input   tag null = a new tag
+ */
+export function tagDialogViewModel({ tag, errors = {} }) {
+  return {
+    title: tag ? `Edit tag ${tag.code}` : 'Add tag',
+    isEdit: tag !== null,
+    upDisabled: !tag?.canUp,
+    downDisabled: !tag?.canDown,
+    errors: { ...errors },
   };
 }
