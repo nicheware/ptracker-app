@@ -1,9 +1,7 @@
 // @ts-check
-// Widgets shared by pages: score picker, tag chip and the confirmation dialog (CD-4 §6.5). Text only via textContent.
+// Widgets shared by pages: score picker, tag chip and the confirmation dialogs (CD-4 §6.5). Text only via textContent.
 
 import { el } from './dom.js';
-
-// TODO(IT-09): typeToConfirmDialog (FR-HIS-06).
 
 /**
  * A 0–10 score group as 11 real radios plus Clear in a 6 × 2 grid (CD-4 §6.5, D4-03). The radios carry
@@ -78,5 +76,61 @@ export function confirmDialog(dialog, { title, body, confirmLabel, danger = fals
     dialog.returnValue = '';
     dialog.showModal();
     cancel.focus();
+  });
+}
+
+/**
+ * Fills #dlg-type-confirm and shows it modally (CD-4 §6.5, FR-HIS-06). Confirm is enabled only while the trimmed
+ * input equals `word` exactly. The optional extra button (e.g. "Download CSV first") is hidden without `extraAction`.
+ * The dialog holds [data-role=title|body|prompt|input|cancel|extra|confirm].
+ * @param {HTMLDialogElement} dialog
+ * @param {{ title: string, body: string, word: string, confirmLabel: string, extraAction?: string|null }} opts
+ * @returns {Promise<'confirm'|'extra'|'cancel'>}   Escape or Cancel → 'cancel'
+ */
+export function typeToConfirmDialog(dialog, { title, body, word, confirmLabel, extraAction = null }) {
+  const part = (/** @type {string} */ role) => /** @type {HTMLElement} */ (dialog.querySelector(`[data-role="${role}"]`));
+  part('title').textContent = title;
+  part('body').textContent = body;
+  part('prompt').textContent = `Type ${word} to confirm.`;
+  const input = /** @type {HTMLInputElement} */ (part('input'));
+  const confirm = /** @type {HTMLButtonElement} */ (part('confirm'));
+  const cancel = part('cancel');
+  const extra = part('extra');
+  confirm.textContent = confirmLabel;
+  extra.textContent = extraAction ?? '';
+  extra.hidden = !extraAction;
+  input.value = '';
+  confirm.disabled = true;
+
+  return new Promise((resolve) => {
+    const onInput = () => { confirm.disabled = input.value.trim() !== word; };
+    const onConfirm = () => { if (input.value.trim() === word) dialog.close('confirm'); };
+    const onExtra = () => dialog.close('extra');
+    const onCancel = () => dialog.close('cancel');
+    const onKey = (/** @type {KeyboardEvent} */ event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();                                     // no implicit submit; Confirm must be tapped
+        input.blur();
+      }
+    };
+    const onClose = () => {
+      input.removeEventListener('input', onInput);
+      input.removeEventListener('keydown', onKey);
+      confirm.removeEventListener('click', onConfirm);
+      extra.removeEventListener('click', onExtra);
+      cancel.removeEventListener('click', onCancel);
+      const r = dialog.returnValue;
+      input.value = '';
+      resolve(r === 'confirm' || r === 'extra' ? r : 'cancel');
+    };
+    input.addEventListener('input', onInput);
+    input.addEventListener('keydown', onKey);
+    confirm.addEventListener('click', onConfirm);
+    extra.addEventListener('click', onExtra);
+    cancel.addEventListener('click', onCancel);
+    dialog.addEventListener('close', onClose, { once: true });
+    dialog.returnValue = '';
+    dialog.showModal();
+    input.focus();                                                  // typing the word is the next step
   });
 }

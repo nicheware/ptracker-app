@@ -31,6 +31,7 @@ const PAGES = Object.freeze({
  * @property {import('../core/types.js').Category} category
  * @property {import('../core/types.js').SettingsService} settingsService
  * @property {import('../core/types.js').StoragePersist} storagePersist
+ * @property {import('../core/types.js').Prefs} prefs
  * @property {import('../core/types.js').BootReport} bootReport
  * @property {string} appName
  * @property {string} appVersion

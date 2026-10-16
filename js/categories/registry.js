@@ -216,6 +216,12 @@ export function assertCategory(c) {
   };
   checkDescriptors('displayMetrics', cat.displayMetrics, 'id', DISPLAY_TOKENS);
   checkDescriptors('historyColumns', cat.historyColumns, 'id', DISPLAY_TOKENS);
+  // Pinned columns (Day, Date) are always shown (FR-HIS-02, CC-21 rev 1.4)
+  if (Array.isArray(cat.historyColumns)) {
+    cat.historyColumns.forEach((c, i) => {
+      if (c?.pinned && c?.defaultHidden) problems.push(`historyColumns[${i}]: a pinned column cannot be defaultHidden`);
+    });
+  }
   checkDescriptors('csv.standard', csv?.standard, 'header', CSV_TOKENS);
   checkDescriptors('csv.extended', csv?.extended, 'header', CSV_TOKENS);
   if (cat.chart && Array.isArray(cat.chart.series)) {

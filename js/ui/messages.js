@@ -39,6 +39,7 @@ export const NOTICES = Object.freeze({
   QUARANTINED: 'Some saved data couldn\'t be read and was set aside. See Baseline → About.',
   SAVED: 'Saved',
   DEFAULTS_RESTORED: 'Defaults restored',
+  ALL_REMOVED: 'All day records removed',
 });
 
 /** Action labels used by the shell's toasts. */

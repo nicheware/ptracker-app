@@ -226,8 +226,9 @@ export function renderList(container, items, keyOf, render, opts = {}) {
     if (sig !== null) node.dataset.sig = sig;
     return node;
   });
+  const keep = new Set(nodes);
   for (const child of /** @type {HTMLElement[]} */ ([...container.children])) {
-    if (!nodes.includes(child)) child.remove();
+    if (!keep.has(child)) child.remove();
   }
   nodes.forEach((node, i) => {
     if (container.children[i] !== node) container.insertBefore(node, container.children[i] ?? null);

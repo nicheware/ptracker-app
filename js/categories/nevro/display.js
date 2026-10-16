@@ -83,28 +83,32 @@ export function dayBadges(ctx) {
 
 /** History 'Program' column, reused by the M2 chart detail panel (CD-3 §12.3, §15). @type {ColumnDescriptor} */
 export const programColumn = {
-  id: 'program', label: 'Program', get: activeOf, format: 'text', blankText: UNKNOWN_LABEL,
+  id: 'program', label: 'Program', get: activeOf, format: 'text', defaultHidden: true, blankText: UNKNOWN_LABEL,
   tone: (ctx) => (activeOf(ctx) === PROGRAM_OFF ? 'off' : null),
 };
 
 const F = FRAMEWORK_HISTORY;
 
-/** NV-HIS-01 order, then Program (CD-3 §12.3). @type {ColumnDescriptor[]} */
+/** A rolling value that exists but has fewer than 7 records or spans a gap (NV-CAL-08). @param {ColumnContext} ctx */
+const rollingPartial = (ctx) => isNum(nh(ctx).rollingAvg) && nh(ctx).rollingPartial === true;
+
+/** NV-HIS-01 order, then Program (CD-3 §12.3). Default-visible: Average, Nevro Percent, Rolling avg (NV-HIS-04). @type {ColumnDescriptor[]} */
 export const historyColumns = [
   F.day,
   F.date,
   F.morning,
   F.afternoon,
   F.evening,
-  { id: 'thcMorning', label: 'MornTHC', get: (ctx) => thcValue(ns(ctx).thcMorning), format: 'ml' },
+  { id: 'thcMorning', label: 'MornTHC', get: (ctx) => thcValue(ns(ctx).thcMorning), format: 'ml', defaultHidden: true },
   F.other,
   F.average,
   { id: 'comment', label: 'Comment', get: (ctx) => formatCommentDisplay(ns(ctx).programChange ?? null, ctx?.record?.comment),
-    format: 'text' },
+    format: 'text', defaultHidden: true },
   F.baseline,
-  { id: 'npl', label: 'Nevro pain level', get: (ctx) => numOrNull(nd(ctx).npl), format: 'dec1',
+  { id: 'npl', label: 'Nevro pain level', get: (ctx) => numOrNull(nd(ctx).npl), format: 'dec1', defaultHidden: true,
     tone: (ctx) => (nplOutOfRange(numOrNull(nd(ctx).npl)) ? 'warning' : null) },
   { id: 'pct', label: 'Nevro Percent', get: (ctx) => numOrNull(nd(ctx).pct), format: 'pct1Signed' },
+  { id: 'rollingAvg', label: 'Rolling avg', get: (ctx) => numOrNull(nh(ctx).rollingAvg), format: 'pct1Signed',
+    note: (ctx) => (rollingPartial(ctx) ? 'partial' : null), tone: (ctx) => (rollingPartial(ctx) ? 'muted' : null) },
   programColumn,
-  // M2: column 14 'rollingAvg' (Rolling avg, pct1Signed, hiddenNarrow, note 'partial' + tone 'muted').
 ];

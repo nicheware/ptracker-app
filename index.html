@@ -78,9 +78,22 @@
     <section id="page-history" data-page="history" hidden aria-labelledby="history-title">
       <header class="page-header">
         <h1 id="history-title" tabindex="-1">History</h1>
+        <p class="history-summary"><span data-out="summary.count"></span> <span class="history-range" data-out="summary.range"></span></p>
+        <p class="history-summary" data-out="summary.lastExport"></p>
       </header>
-      <div class="card">
-        <p class="placeholder" data-out="placeholder.text"></p>
+      <!-- IT-10: the export panel (Download CSV, include incomplete days) goes here (CD-4 §9.1, §9.5). -->
+      <div class="card history-options" data-show="showAll.shown">
+        <label class="switch"><input type="checkbox" role="switch" data-pref="history.showAllColumns"> <span data-out="showAll.label"></span></label>
+      </div>
+      <p class="empty-state" data-show="empty">No days recorded yet.</p>
+      <div class="table-scroll" data-show="hasRows">
+        <table class="history" data-flag="showAll.on:show-all">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="danger-zone">
+        <button type="button" class="panel-button danger-text" data-action="history.removeAll" data-attr="removeAll.disabled:disabled">Remove all data…</button>
       </div>
     </section>
     <section id="page-baseline" data-page="baseline" hidden aria-labelledby="baseline-title">
@@ -135,6 +148,20 @@
     <div class="dialog-actions">
       <button type="button" class="dialog-button" data-role="cancel">Cancel</button>
       <button type="button" class="dialog-button primary" data-role="confirm"></button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-type-confirm" class="dialog" aria-labelledby="dlg-type-confirm-title" aria-describedby="dlg-type-confirm-body">
+    <h2 id="dlg-type-confirm-title" class="dialog-title" data-role="title"></h2>
+    <p id="dlg-type-confirm-body" class="dialog-body" data-role="body"></p>
+    <div class="field">
+      <label class="field-label" for="type-confirm-input" data-role="prompt"></label>
+      <span class="field-control"><input id="type-confirm-input" class="input" type="text" data-role="input" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done"></span>
+    </div>
+    <button type="button" class="dialog-button dialog-extra" data-role="extra" hidden></button>
+    <div class="dialog-actions">
+      <button type="button" class="dialog-button" data-role="cancel">Cancel</button>
+      <button type="button" class="dialog-button primary danger" data-role="confirm" disabled></button>
     </div>
   </dialog>
 

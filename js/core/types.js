@@ -192,7 +192,7 @@
  * @property {(ctx: ColumnContext) => number|string|null} get
  * @property {string} format
  * @property {boolean} [pinned]
- * @property {boolean} [hiddenNarrow]
+ * @property {boolean} [defaultHidden]  hidden until "Show all columns" (FR-HIS-09/10, CC-21 rev 1.4)
  * @property {(ctx: ColumnContext) => Tone|null} [tone]
  * @property {string} [blankText]
  * @property {(ctx: ColumnContext) => string|null} [note]
@@ -255,6 +255,11 @@
  * @typedef {Object} StoragePersist  infra/storage-persist.js (CC-27)
  * @property {() => Promise<boolean|null>} persisted   null = API unsupported
  * @property {() => Promise<boolean|null>} persist
+ */
+/**
+ * @typedef {Object} Prefs  infra/prefs.js: rebuildable UI preferences, JSON in localStorage (CC-36)
+ * @property {(key: string, fallback: any) => any} get   never throws; fallback when missing or unreadable
+ * @property {(key: string, value: any) => void} set     never throws
  */
 /** @typedef {Object} IdbFactoryLike   the global indexedDB, or new IDBFactory() from fake-indexeddb (CC-27) */
 

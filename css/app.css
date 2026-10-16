@@ -867,6 +867,187 @@ button:disabled {
   font-size: 0.75rem;
 }
 
+/* ---------- History (CD-4 §9.1, §9.4; FR-HIS-02, FR-HIS-09/10) ---------- */
+.history-summary {
+  margin: var(--space-1) 0 0;
+  font-size: 0.875rem;
+  color: var(--c-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-range {
+  white-space: nowrap;
+}
+
+.history-options {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+.empty-state {
+  color: var(--c-muted);
+  text-align: center;
+  margin: var(--space-5) 0;
+}
+
+/* The table scrolls inside this box; the page never scrolls sideways (FR-HIS-02, NFR-USE-06). */
+.table-scroll {
+  position: relative;
+  z-index: 0;                       /* the sticky cells stack inside this box, below the tab bar and toasts */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--c-surface);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-5);
+}
+
+table.history {
+  --col-day-w: 2.75rem;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+
+table.history.show-all {
+  width: max-content;
+  min-width: 100%;
+}
+
+table.history:not(.show-all) [data-default-hidden] {
+  display: none;
+}
+
+table.history th,
+table.history td {
+  padding: var(--space-2) var(--space-1);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+  background-color: var(--c-surface);
+  position: relative;               /* contains the visually hidden texts, so they never widen the page */
+}
+
+table.history th:first-child,
+table.history td:first-child {
+  padding-left: var(--space-2);
+}
+
+table.history th:last-child,
+table.history td:last-child {
+  padding-right: var(--space-2);
+}
+
+table.history thead th {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--c-muted);
+  white-space: normal;
+  vertical-align: bottom;
+  border-bottom: 1px solid var(--c-border);
+}
+
+table.history .num {
+  text-align: right;
+}
+
+table.history .pin {
+  position: sticky;
+  z-index: 1;
+}
+
+table.history .pin-0 {
+  left: 0;
+  width: var(--col-day-w);
+  min-width: var(--col-day-w);
+  max-width: var(--col-day-w);
+}
+
+table.history .pin-1 {
+  left: var(--col-day-w);
+  border-right: 1px solid var(--c-border);
+}
+
+table.history tbody tr {
+  cursor: pointer;
+}
+
+table.history tbody tr + tr > td {
+  border-top: 1px solid var(--c-border);
+}
+
+table.history tbody tr:active > td {
+  background-image: linear-gradient(var(--c-band-off), var(--c-band-off));
+}
+
+.row-link {
+  color: var(--c-accent);
+  text-decoration: none;
+}
+
+.cell-note {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--c-muted);
+}
+
+.cell-warn,
+table.history .tone-warning {
+  color: var(--c-warning);
+}
+
+.row-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+/* Badges wrap, so the Date column stays as wide as its date (FR-HIS-10: the default columns fit 375 pt). */
+.row-badges .badge {
+  white-space: normal;
+  padding: 0 var(--space-1);
+  font-size: 0.6875rem;
+  border-radius: 6px;
+}
+
+/* Off rows: the band tint over an opaque surface, so sticky cells stay opaque (NV-PRG-05). */
+table.history tr.is-off > td {
+  background-image: linear-gradient(var(--c-band-off), var(--c-band-off));
+}
+
+table.history tr.is-incomplete > td:not(.pin) {
+  color: var(--c-muted);
+  font-style: italic;
+  font-size: 0.8125rem;             /* "Incomplete" must not widen the Average column */
+}
+
+table.history tr.gap-row > td {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+  font-size: 0.8125rem;
+  background-image: linear-gradient(var(--c-band-off), var(--c-band-off));
+}
+
+.gap-link {
+  position: sticky;
+  left: var(--space-3);
+  display: inline-block;
+  color: var(--c-muted);
+  text-decoration: none;
+}
+
+.gap-link::before {
+  content: "┄ ";
+}
+
+.dialog-extra {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
 /* ---------- Tab bar ---------- */
 .tabbar {
   position: fixed;

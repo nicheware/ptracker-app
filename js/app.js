@@ -5,6 +5,7 @@ import { systemClock } from './infra/clock.js';
 import { createSwClient } from './infra/sw-client.js';
 import { openDb } from './infra/db.js';
 import { createStoragePersist } from './infra/storage-persist.js';
+import { createPrefs, safeLocalStorage } from './infra/prefs.js';
 import { createEmitter, EVENTS } from './core/events.js';
 import { createSettingsService } from './services/settings-service.js';
 import { createRecordService } from './services/record-service.js';
@@ -16,7 +17,7 @@ import { APP_NAME, VERSION } from './version.js';
 async function main() {
   const bus = createEmitter();                                       // before openDb (CC-28 rev 1)
   const clock = systemClock;
-  // TODO(IT-09): prefs = createPrefs(safeLocalStorage()).
+  const prefs = createPrefs(safeLocalStorage());
   const storagePersist = createStoragePersist();
   const swClient = createSwClient({ bus });
   void swClient.register();                                          // step 1, not awaited
@@ -38,7 +39,7 @@ async function main() {
   }
   void storagePersist.persist();                                     // step 6, not awaited
 
-  startShell({ bus, clock, swClient, recordService, category, settingsService, storagePersist, bootReport,
+  startShell({ bus, clock, swClient, recordService, category, settingsService, storagePersist, prefs, bootReport,
     appName: APP_NAME, appVersion: VERSION });                       // step 7
 }
 
