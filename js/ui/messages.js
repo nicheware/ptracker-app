@@ -3,8 +3,6 @@
 
 import { isAppError } from '../core/errors.js';
 
-// The export context arrives with CSV export (IT-10).
-
 /** '<context>.<CODE>' or '<CODE>' → sentence. */
 export const MESSAGES = Object.freeze({
   // Fatal screen and storage (CD-4 §5.8, CC-29 rev 1)
@@ -26,6 +24,8 @@ export const MESSAGES = Object.freeze({
   'delete.QUOTA_EXCEEDED': 'Could not delete. Nothing was changed.',
   'removeAll.TX_FAILED': 'Could not delete. Nothing was changed.',
   'removeAll.QUOTA_EXCEEDED': 'Could not delete. Nothing was changed.',
+  // CSV export (CD-6 §12)
+  'export.SHARE_FAILED': 'Couldn\'t open the share sheet. Tap Download again.',
   // Baseline & settings writes (CD-4 §10.2)
   'settings.TX_FAILED': 'Not saved. Nothing was changed. Please try again.',
   UNKNOWN: 'Something went wrong. Your saved data is safe. Reload PTracker.',
@@ -40,6 +40,8 @@ export const NOTICES = Object.freeze({
   SAVED: 'Saved',
   DEFAULTS_RESTORED: 'Defaults restored',
   ALL_REMOVED: 'All day records removed',
+  CSV_SAVED: 'CSV saved',
+  CSV_SAVED_UNTRACKED: 'CSV saved, but PTracker couldn\'t record the download date.',
 });
 
 /** Action labels used by the shell's toasts. */

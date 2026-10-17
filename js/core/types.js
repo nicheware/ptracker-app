@@ -262,6 +262,12 @@
  * @property {(key: string, fallback: any) => any} get   never throws; fallback when missing or unreadable
  * @property {(key: string, value: any) => void} set     never throws
  */
+/**
+ * @typedef {Object} FileOut  infra/file-out.js (CC-27 rev 1)
+ * @property {(file: { name: string, type: string, text: string }) => Promise<'shared'|'downloaded'|'cancelled'>} save
+ *           call synchronously inside the user's tap: it calls navigator.share (or clicks an anchor) before its first
+ *           await; rejects with AppError('SHARE_FAILED')
+ */
 /** @typedef {Object} IdbFactoryLike   the global indexedDB, or new IDBFactory() from fake-indexeddb (CC-27) */
 
 // ── Persistence gateway (CC-39) ─────────────────────────────────────────────────────────────────────
@@ -309,7 +315,7 @@
 
 /**
  * @typedef {Object} SettingsService  (CC-41). Writes resolve with a ValidationResult (nothing written when !ok) and
- *           reject only with AppError. IT-10 adds markExported.
+ *           reject only with AppError.
  * @property {() => Promise<void>} load            reads three stores, seeds/repairs, fills caches (CC-29 step 4)
  * @property {() => Promise<void>} reload          re-read after restore (CC-30)
  * @property {() => Settings} getSettings
@@ -326,6 +332,36 @@
  * @property {(code: string, patch: { label?: string, kind?: TagKind, retired?: boolean }) => Promise<ValidationResult>} updateTag
  * @property {(codes: string[]) => Promise<void>} reorderTags
  * @property {() => Promise<void>} restoreDefaults
+ * @property {(kind: 'csv'|'backup', at: Timestamp, maxRecordUpdatedAt: Timestamp|null) => Promise<void>} markExported
+ *           the only export-tracking write: lastExportAt (csv) or lastBackupAt (backup), plus lastExportRecordUpdatedAt
+ */
+
+// ── Transfer (CC-42, CD-6 §10). The M2 members (import, backup, restore, reminder) arrive with M2. ────
+
+/** @typedef {'standard'|'extended'} CsvLayout */
+/**
+ * @typedef {Object} CsvExportOptions
+ * @property {CsvLayout} layout             'standard' until M2 (FR-EXP-08)
+ * @property {boolean} includeIncomplete    FR-EXP-06; default false
+ */
+/**
+ * @typedef {Object} ExportFile
+ * @property {string} name
+ * @property {string} type
+ * @property {string} text
+ * @property {number} rowCount              data rows (CSV) or records (backup)
+ * @property {Timestamp|null} maxUpdatedAt  latest updatedAt over all records
+ */
+/**
+ * @typedef {Object} ExportResult
+ * @property {'shared'|'downloaded'|'cancelled'} outcome
+ * @property {number} rowCount
+ * @property {Error|null} trackingError     the last-export timestamp could not be saved (the file is fine)
+ */
+/**
+ * @typedef {Object} TransferService
+ * @property {(opts: CsvExportOptions) => ExportFile} csvFile                 sync; counts and tests
+ * @property {(opts: CsvExportOptions) => Promise<ExportResult>} exportCsv   call inside the tap (CC-27 rev 1)
  */
 
 export {};

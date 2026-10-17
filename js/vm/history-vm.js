@@ -1,9 +1,9 @@
 // @ts-check
 // History view-model: columns and their default visibility, rows newest first, gaps, day badges, the summary and
-// the remove-all dialog text (CD-4 §9.3, §9.6).
-// TODO(IT-10): the export panel (exportCount, includeIncomplete, button label) and the real "last export" values.
+// the export panel and the remove-all dialog text (CD-4 §9.3, §9.5, §9.6).
 
-import { buildContexts } from '../core/engine.js';
+import { buildContexts, SCORE_KEYS } from '../core/engine.js';
+import { isScore } from '../core/numbers.js';
 import { BLANK, formatValue, formatTimestampDate } from '../core/format.js';
 import { addDays, daysBetween, formatShortDate, todayIso } from '../core/dates.js';
 
@@ -45,6 +45,14 @@ import { addDays, daysBetween, formatShortDate, todayIso } from '../core/dates.j
  *
  * @typedef {{ count: string, range: string, lastExport: string }} HistorySummaryVM
  *
+ * @typedef {Object} ExportPanelVM
+ * @property {boolean} includeIncomplete   the toggle state (pref export.includeIncomplete)
+ * @property {number} incompleteCount
+ * @property {number} exportCount          rows the CSV would have: transferService.csvFile(opts).rowCount (CC-42)
+ * @property {string} buttonLabel          'Download CSV (68 days)'
+ * @property {boolean} disabled            nothing to export
+ * @property {string} toggleLabel          'Include incomplete days (2)'
+ *
  * @typedef {Object} HistoryVM
  * @property {boolean} empty
  * @property {boolean} hasRows         the table is shown
@@ -52,7 +60,9 @@ import { addDays, daysBetween, formatShortDate, todayIso } from '../core/dates.j
  * @property {HistoryColumnVM[]} columns
  * @property {Array<HistoryRowVM|HistoryGapVM>} rows
  * @property {{ shown: boolean, on: boolean, label: string }} showAll
- * @property {{ title: string, body: string, word: string, confirmLabel: string, disabled: boolean }} removeAll
+ * @property {ExportPanelVM} exportPanel
+ * @property {{ title: string, body: string, word: string, confirmLabel: string, disabled: boolean,
+ *              extraAction: string|null }} removeAll
  */
 
 const NUMERIC = new Set(['int', 'dec1', 'pct1Signed', 'pct0Signed', 'ml']);
@@ -61,6 +71,7 @@ const GAP_ROWS_MAX = 3;
 
 export const INCOMPLETE_TEXT = 'Incomplete';
 export const SHOW_ALL_LABEL = 'Show all columns';
+export const DOWNLOAD_FIRST_LABEL = 'Download CSV first';
 
 /**
  * Column view-models in the category's order (CC-21 rev 1.4).
@@ -144,17 +155,40 @@ export function historySummary({ records, settings, today }) {
   const first = n > 0 ? formatShortDate(records[0].date) : '';
   const last = n > 0 ? formatShortDate(records[n - 1].date) : '';
   return {
-    count: n === 1 ? '1 day' : `${n} days`,
+    count: daysText(n),
     range: n === 0 ? '' : n === 1 ? first : `${first} – ${last}`,
     lastExport: `Last CSV download: ${lastExportText(settings?.lastExportAt, today)}`,
   };
 }
 
+/** @param {number} n */
+const daysText = (n) => (n === 1 ? '1 day' : `${n} days`);
+
 /**
- * Remove-all dialog text (CD-4 §9.6, FR-HIS-06): recommends a CSV first; speaks of day records only.
- * @param {number} n
+ * Export panel (CD-4 §9.3, §9.5, FR-EXP-06): the button carries the export count, the toggle the incomplete count.
+ * Cheap: used alone when the rows are still current.
+ * @param {{ records: readonly DayRecord[], includeIncomplete: boolean, exportCount: number }} input
+ * @returns {ExportPanelVM}
  */
-function removeAllVm(n) {
+export function exportPanelVm({ records, includeIncomplete, exportCount }) {
+  let incompleteCount = 0;
+  for (const r of records) if (!SCORE_KEYS.every((k) => isScore(r.scores?.[k]))) incompleteCount++;
+  return {
+    includeIncomplete,
+    incompleteCount,
+    exportCount,
+    buttonLabel: exportCount > 0 ? `Download CSV (${daysText(exportCount)})` : 'Download CSV',
+    disabled: exportCount === 0,
+    toggleLabel: `Include incomplete days (${incompleteCount})`,
+  };
+}
+
+/**
+ * Remove-all dialog text (CD-4 §9.6, FR-HIS-06): recommends a CSV first and offers it; speaks of day records only.
+ * @param {number} n
+ * @param {number} exportCount
+ */
+function removeAllVm(n, exportCount) {
   const what = n === 1 ? 'the 1 day record' : `all ${n} day records`;
   return {
     title: 'Remove all day records?',
@@ -163,15 +197,17 @@ function removeAllVm(n) {
     word: 'DELETE',
     confirmLabel: 'Remove all',
     disabled: n === 0,
+    extraAction: exportCount > 0 ? DOWNLOAD_FIRST_LABEL : null,
   };
 }
 
 /**
  * @param {{ records: readonly DayRecord[], category: Category, settings: Settings|null, today: IsoDate,
- *           showAll: boolean }} input   records ascending (recordService.all())
+ *           showAll: boolean, includeIncomplete?: boolean, exportCount?: number }} input
+ *        records ascending (recordService.all()); exportCount from transferService.csvFile(opts).rowCount (CC-42)
  * @returns {HistoryVM}
  */
-export function historyViewModel({ records, category, settings, today, showAll }) {
+export function historyViewModel({ records, category, settings, today, showAll, includeIncomplete = false, exportCount = 0 }) {
   const columns = historyColumnVms(category, showAll);
   const ctxs = buildContexts(/** @type {DayRecord[]} */ (records), category);   // over all records (CC-19 rev 1)
   /** @type {Map<IsoDate, HistoryGapVM[]>} */
@@ -203,6 +239,7 @@ export function historyViewModel({ records, category, settings, today, showAll }
     columns,
     rows,
     showAll: { shown: columns.some((c) => c.defaultHidden), on: showAll, label: SHOW_ALL_LABEL },
-    removeAll: removeAllVm(records.length),
+    exportPanel: exportPanelVm({ records, includeIncomplete, exportCount }),
+    removeAll: removeAllVm(records.length, exportCount),
   };
 }

@@ -81,9 +81,10 @@
         <p class="history-summary"><span data-out="summary.count"></span> <span class="history-range" data-out="summary.range"></span></p>
         <p class="history-summary" data-out="summary.lastExport"></p>
       </header>
-      <!-- IT-10: the export panel (Download CSV, include incomplete days) goes here (CD-4 §9.1, §9.5). -->
-      <div class="card history-options" data-show="showAll.shown">
-        <label class="switch"><input type="checkbox" role="switch" data-pref="history.showAllColumns"> <span data-out="showAll.label"></span></label>
+      <div class="card history-options">
+        <button type="button" class="primary-button" data-action="history.export" data-out="exportPanel.buttonLabel" data-attr="exportPanel.disabled:disabled">Download CSV</button>
+        <label class="switch"><input type="checkbox" role="switch" data-pref="export.includeIncomplete"> <span data-out="exportPanel.toggleLabel"></span></label>
+        <label class="switch" data-show="showAll.shown"><input type="checkbox" role="switch" data-pref="history.showAllColumns"> <span data-out="showAll.label"></span></label>
       </div>
       <p class="empty-state" data-show="empty">No days recorded yet.</p>
       <div class="table-scroll" data-show="hasRows">

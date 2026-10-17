@@ -30,6 +30,7 @@ const PAGES = Object.freeze({
  * @property {{ flush(): Promise<void>, retry(): Promise<void>, status(): import('../core/types.js').SaveStatus }} recordService
  * @property {import('../core/types.js').Category} category
  * @property {import('../core/types.js').SettingsService} settingsService
+ * @property {import('../core/types.js').TransferService} transferService
  * @property {import('../core/types.js').StoragePersist} storagePersist
  * @property {import('../core/types.js').Prefs} prefs
  * @property {import('../core/types.js').BootReport} bootReport

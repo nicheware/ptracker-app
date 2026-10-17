@@ -5,10 +5,12 @@ import { systemClock } from './infra/clock.js';
 import { createSwClient } from './infra/sw-client.js';
 import { openDb } from './infra/db.js';
 import { createStoragePersist } from './infra/storage-persist.js';
+import { createFileOut } from './infra/file-out.js';
 import { createPrefs, safeLocalStorage } from './infra/prefs.js';
 import { createEmitter, EVENTS } from './core/events.js';
 import { createSettingsService } from './services/settings-service.js';
 import { createRecordService } from './services/record-service.js';
+import { createTransferService } from './services/transfer-service.js';
 import { startShell, showFatal } from './ui/shell.js';
 import { assertRenderable } from './ui/dom.js';
 import { getCategory, DEFAULT_CATEGORY_ID } from './categories/registry.js';
@@ -19,9 +21,10 @@ async function main() {
   const clock = systemClock;
   const prefs = createPrefs(safeLocalStorage());
   const storagePersist = createStoragePersist();
+  const fileOut = createFileOut();
   const swClient = createSwClient({ bus });
   void swClient.register();                                          // step 1, not awaited
-  let category, bootReport, settingsService, recordService;
+  let category, bootReport, settingsService, recordService, transferService;
   try {                                                              // fatal list: CC-29 rev 1
     category = getCategory(DEFAULT_CATEGORY_ID);                     // UNKNOWN_CATEGORY / CATEGORY_INVALID
     assertRenderable(category);                                      // CATEGORY_INVALID (CC-28 rev 1)
@@ -32,15 +35,16 @@ async function main() {
     await settingsService.load();                                    // step 4; a failed seed write is fatal
     recordService = createRecordService({ db, category, clock, bus, settingsService });
     await recordService.load();                                      // step 5
-    // TODO(IT-10): fileOut and transferService.
+    transferService = createTransferService({ db, category, clock, bus, fileOut, recordService, settingsService,
+      appVersion: VERSION });
   } catch (e) {
     showFatal(e);
     return;
   }
   void storagePersist.persist();                                     // step 6, not awaited
 
-  startShell({ bus, clock, swClient, recordService, category, settingsService, storagePersist, prefs, bootReport,
-    appName: APP_NAME, appVersion: VERSION });                       // step 7
+  startShell({ bus, clock, swClient, recordService, category, settingsService, transferService, storagePersist, prefs,
+    bootReport, appName: APP_NAME, appVersion: VERSION });                       // step 7
 }
 
 main();

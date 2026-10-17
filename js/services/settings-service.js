@@ -25,8 +25,6 @@ import { planSeedRepair, applyWeekdayPatch, applyCategorySettingsPatch, makeTag,
  *         | { ok: false, issues: ValidationIssue[] }} Plan
  */
 
-// TODO(IT-10): markExported (CD-1 §11.1, CC-41).
-
 /**
  * Freezes objects and arrays recursively (cached values are immutable, CC-06, CC-30).
  * @template T
@@ -192,6 +190,20 @@ export function createSettingsService({ db, category, clock, bus }) {
     });
   }
 
+  /**
+   * The only export-tracking write (CC-41): lastExportAt (csv) or lastBackupAt (backup), plus
+   * lastExportRecordUpdatedAt. Called by the transfer service after 'shared' or 'downloaded' (CD-6 §6.4).
+   * @type {SettingsService['markExported']}
+   */
+  async function markExported(kind, at, maxRecordUpdatedAt) {
+    await step((c) => {
+      const settings = { ...c.settings, [kind === 'backup' ? 'lastBackupAt' : 'lastExportAt']: at,
+        lastExportRecordUpdatedAt: maxRecordUpdatedAt };
+      return { ok: true, ops: [{ type: 'put', store: 'settings', value: settings }], scopes: ['settings'],
+        next: { ...c, settings } };
+    });
+  }
+
   return {
     load,
     reload: load,
@@ -202,6 +214,7 @@ export function createSettingsService({ db, category, clock, bus }) {
     updateTag,
     reorderTags,
     restoreDefaults,
+    markExported,
     getSettings: () => loaded().settings,
     getCategorySettings: () => loaded().settings.category[category.id],
     getWeekdays: () => [...loaded().weekdays],

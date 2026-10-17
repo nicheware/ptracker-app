@@ -1,11 +1,11 @@
 // @ts-check
 // History page controller (CD-4 §9): the record table newest first with pinned Day / Date, gap rows, day badges,
-// "Show all columns", the summary and Remove all data. The export panel arrives with CSV export (IT-10).
+// "Show all columns", the summary, the Download CSV panel and Remove all data.
 
 import { el, paint, renderList } from '../dom.js';
 import { typeToConfirmDialog } from '../widgets.js';
 import { messageFor, NOTICES } from '../messages.js';
-import { historyViewModel, historySummary } from '../../vm/history-vm.js';
+import { historyViewModel, historySummary, exportPanelVm } from '../../vm/history-vm.js';
 import { EVENTS } from '../../core/events.js';
 import { todayIso } from '../../core/dates.js';
 
@@ -23,10 +23,13 @@ import { todayIso } from '../../core/dates.js';
  * @property {{ getSettings(): import('../../core/types.js').Settings }} settingsService
  * @property {{ all(): readonly import('../../core/types.js').DayRecord[], flush(): Promise<void>,
  *              removeAll(): Promise<{ removed: number }> }} recordService
+ * @property {import('../../core/types.js').TransferService} transferService
  * @property {(route: {page: string, date?: string|null}, opts?: {replace?: boolean}) => void} navigate
  */
 
 const SHOW_ALL_KEY = 'history.showAllColumns';
+const INCLUDE_KEY = 'export.includeIncomplete';
+const LAYOUT_KEY = 'export.layout';
 /** Rows built synchronously on the first render (one screenful plus margin), then chunks per frame (D4-07). */
 const FIRST_ROWS = 60;
 const CHUNK_ROWS = 300;
@@ -37,7 +40,7 @@ const nextFrame = (fn) => (typeof globalThis.requestAnimationFrame === 'function
 
 /** @param {HistoryDeps} deps */
 export function createHistoryPage(deps) {
-  const { category, clock, bus, prefs, recordService, settingsService, navigate } = deps;
+  const { category, clock, bus, prefs, recordService, settingsService, transferService, navigate } = deps;
   /** @type {HTMLElement|null} */
   let root = null;
   /** @type {HTMLElement|null} */
@@ -46,6 +49,8 @@ export function createHistoryPage(deps) {
   let tbody = null;
   /** @type {HTMLInputElement|null} */
   let toggle = null;
+  /** @type {HTMLInputElement|null} */
+  let includeToggle = null;
   /** @type {HTMLDialogElement|null} */
   let typeDlg = null;
   let visible = false;
@@ -53,10 +58,24 @@ export function createHistoryPage(deps) {
   let showAll = false;
   let renderToken = 0;
   let removing = false;
+  let exporting = false;
   /** @type {HistoryVM|null} */
   let lastVm = null;
 
   const today = () => todayIso(clock.now());
+
+  /**
+   * Export options from the prefs (CD-4 §9.5, CC-36). The layout is 'standard' while the category has no extended
+   * layout (CC-20 rev 1; the choice is M2, FR-EXP-08).
+   * @returns {import('../../core/types.js').CsvExportOptions}
+   */
+  const exportOpts = () => ({
+    layout: category.csv.extended.length > 0 && prefs.get(LAYOUT_KEY, 'standard') === 'extended' ? 'extended' : 'standard',
+    includeIncomplete: prefs.get(INCLUDE_KEY, false) === true,
+  });
+
+  /** Rows the CSV would have: built synchronously from the caches, for the label only (CC-42). */
+  const exportCount = (/** @type {import('../../core/types.js').CsvExportOptions} */ opts) => transferService.csvFile(opts).rowCount;
 
   /** Column classes: pinned columns stick in order (pin-0 = Day, pin-1 = Date), numbers align right. */
   function columnClasses(/** @type {HistoryColumnVM[]} */ columns) {
@@ -140,8 +159,9 @@ export function createHistoryPage(deps) {
   /** Rebuilds the view-model from the record cache and repaints everything. */
   function render() {
     if (!root) return;
+    const opts = exportOpts();
     const vm = historyViewModel({ records: recordService.all(), category, settings: settingsService.getSettings(),
-      today: today(), showAll });
+      today: today(), showAll, includeIncomplete: opts.includeIncomplete, exportCount: exportCount(opts) });
     if (thead && thead.children.length === 0) buildHead(vm.columns);
     renderRows(vm);
     lastVm = vm;
@@ -149,19 +169,46 @@ export function createHistoryPage(deps) {
     paint(root, vm);
   }
 
-  /** Summary and toggle only; the rows are current (CD-4 §9.2 step 2). */
+  /** Summary, toggles and export panel only; the rows are current (CD-4 §9.2 steps 2–3). */
   function repaint() {
     if (!root || !lastVm) return;
+    const records = recordService.all();
+    const opts = exportOpts();
     lastVm = { ...lastVm,
-      summary: historySummary({ records: recordService.all(), settings: settingsService.getSettings(), today: today() }),
-      showAll: { ...lastVm.showAll, on: showAll } };
+      summary: historySummary({ records, settings: settingsService.getSettings(), today: today() }),
+      showAll: { ...lastVm.showAll, on: showAll },
+      exportPanel: exportPanelVm({ records, includeIncomplete: opts.includeIncomplete, exportCount: exportCount(opts) }) };
     paint(root, lastVm);
   }
 
   /** @param {import('../toast.js').Toast} toast */
   const showToast = (toast) => bus.emit(EVENTS.UI_TOAST, toast);
 
-  /** Remove all data (CD-4 §9.6, FR-HIS-06): flush, typed confirmation, removeAll, result toast. */
+  /**
+   * Download CSV (CD-4 §9.5, FR-EXP-04): exportCsv is the first asynchronous step of the tap, with no await before it,
+   * so iOS still sees the user's tap when the share sheet opens (CC-27 rev 1). A cancel shows nothing.
+   * @returns {Promise<void>}
+   */
+  function runExport() {
+    if (exporting) return Promise.resolve();
+    exporting = true;
+    /** @type {Promise<import('../../core/types.js').ExportResult>} */
+    let pending;
+    try {
+      pending = transferService.exportCsv(exportOpts());
+    } catch (e) {
+      pending = Promise.reject(e);
+    }
+    return pending.then(({ outcome, trackingError }) => {
+      if (outcome === 'cancelled') return;
+      if (trackingError) showToast({ kind: 'warning', text: NOTICES.CSV_SAVED_UNTRACKED, action: null, sticky: false, key: 'export' });
+      else showToast({ kind: 'success', text: NOTICES.CSV_SAVED, action: null, sticky: false, key: 'export' });
+    }, (e) => {
+      showToast({ kind: 'error', text: messageFor(e, 'export'), action: null, sticky: false, key: 'export' });
+    }).finally(() => { exporting = false; });
+  }
+
+  /** Remove all data (CD-4 §9.6, FR-HIS-06): flush, typed confirmation (or Download CSV first), removeAll, toast. */
   async function removeAll() {
     if (!typeDlg || removing) return;
     removing = true;
@@ -172,9 +219,13 @@ export function createHistoryPage(deps) {
       render();
       const text = /** @type {HistoryVM} */ (lastVm).removeAll;
       if (text.disabled) return;
-      // TODO(IT-10): extraAction 'Download CSV first' runs the Download CSV tap path, then re-opens the dialog.
-      const choice = await typeToConfirmDialog(typeDlg, { title: text.title, body: text.body, word: text.word,
-        confirmLabel: text.confirmLabel });
+      let choice = await typeToConfirmDialog(typeDlg, { title: text.title, body: text.body, word: text.word,
+        confirmLabel: text.confirmLabel, extraAction: text.extraAction });
+      while (choice === 'extra') {
+        await runExport();                                            // called before any other await: still the tap
+        choice = await typeToConfirmDialog(typeDlg, { title: text.title, body: text.body, word: text.word,
+          confirmLabel: text.confirmLabel, extraAction: null });
+      }
       if (choice !== 'confirm') return;
       await recordService.removeAll();
       showToast({ kind: 'success', text: NOTICES.ALL_REMOVED, action: null, sticky: false, key: 'removeAll' });
@@ -189,6 +240,10 @@ export function createHistoryPage(deps) {
   function onClick(event) {
     const target = /** @type {Element} */ (event.target);
     const action = /** @type {HTMLElement|null} */ (target.closest('[data-action]'));
+    if (action?.dataset.action === 'history.export') {
+      void runExport();                                               // synchronous call inside the tap (CC-27 rev 1)
+      return;
+    }
     if (action?.dataset.action === 'history.removeAll') {
       void removeAll();
       return;
@@ -206,12 +261,21 @@ export function createHistoryPage(deps) {
       thead = section.querySelector('table.history thead');
       tbody = section.querySelector('table.history tbody');
       toggle = section.querySelector(`input[data-pref="${SHOW_ALL_KEY}"]`);
+      includeToggle = section.querySelector(`input[data-pref="${INCLUDE_KEY}"]`);
       typeDlg = /** @type {HTMLDialogElement|null} */ (doc.getElementById('dlg-type-confirm'));
       section.addEventListener('click', onClick);
       toggle?.addEventListener('change', () => {
         showAll = !!toggle?.checked;
         prefs.set(SHOW_ALL_KEY, showAll);
         repaint();                                                    // flips the table's show-all class only
+      });
+      includeToggle?.addEventListener('change', () => {
+        prefs.set(INCLUDE_KEY, !!includeToggle?.checked);
+        repaint();                                                    // new export count; the rows are unchanged
+      });
+      bus.on(EVENTS.EXPORT_DONE, () => {                              // "Last CSV download" (FR-HIS-07, CD-4 §9.2)
+        stale = true;
+        if (visible) render();
       });
       bus.on(EVENTS.DATA_CHANGED, (/** @type {{ scope: string }} */ { scope }) => {
         if (scope === 'records' || scope === 'all') stale = true;
@@ -224,6 +288,7 @@ export function createHistoryPage(deps) {
       visible = true;
       showAll = prefs.get(SHOW_ALL_KEY, false) === true;
       if (toggle) toggle.checked = showAll;
+      if (includeToggle) includeToggle.checked = prefs.get(INCLUDE_KEY, false) === true;
       if (stale || !lastVm) render();
       else repaint();
     },

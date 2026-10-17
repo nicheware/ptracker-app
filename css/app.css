@@ -880,8 +880,24 @@ button:disabled {
 }
 
 .history-options {
-  padding-top: var(--space-1);
+  padding-top: var(--space-3);
   padding-bottom: var(--space-1);
+}
+
+/* Download CSV (CD-4 §9.1, FR-HIS-05): the page's one primary action. */
+.primary-button {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--space-1);
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: var(--c-on-accent);
+  font-weight: 600;
+}
+
+.primary-button:disabled {
+  background: var(--c-surface);
+  border-color: var(--c-border);
 }
 
 .empty-state {
