@@ -2,4 +2,4 @@
 // App name and version; stamped by tools/stamp.mjs, never edited by hand (CC-34).
 
 export const APP_NAME = 'PTracker';
-export const VERSION = '0.10.0+20261017.0026';
+export const VERSION = '0.10.1+20261017.0134';

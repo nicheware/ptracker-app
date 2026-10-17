@@ -680,10 +680,20 @@ button:disabled {
   line-height: 1.25;
 }
 
+/* Columns may shrink below the 44 px minimum so six always fit the card: a 320 pt screen (iPhone mini or SE with
+   Display Zoom) leaves 256 px inside the card. From 375 pt each column is wider than 44 px anyway (NFR-USE-06). */
 .seg-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-1);
+}
+
+/* Below 360 pt the score card gives up half its side padding, keeping each button about 42 px wide. */
+@media (max-width: 359px) {
+  .scores.card {
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+  }
 }
 
 .seg {
@@ -691,7 +701,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--tap-min);
+  min-width: 0;
   min-height: var(--tap-min);
   padding: 0;
   border: 1px solid var(--c-border);
