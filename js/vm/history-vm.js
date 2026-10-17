@@ -31,7 +31,7 @@ import { addDays, daysBetween, formatShortDate, todayIso } from '../core/dates.j
  * @property {IsoDate} key
  * @property {string} href             '#entry/<date>'
  * @property {HistoryCellVM[]} cells   aligned with columns, hidden ones included
- * @property {Array<{ id: string, text: string, warning: boolean }>} badges
+ * @property {Array<{ id: string, text: string, warning: boolean }>} badges   'incomplete' first, then dayBadges
  * @property {boolean} incomplete
  * @property {boolean} off             any cell has tone 'off' (NV-PRG-05)
  * @property {string} sig              changes when anything shown in the row changes (renderList reuse)
@@ -74,18 +74,6 @@ export function historyColumnVms(category, showAll) {
     return { id: c.id, label: c.label, heading: c.shortLabel ?? c.label, pinned: !!c.pinned, defaultHidden, hidden: defaultHidden && !showAll,
       align: NUMERIC.has(c.format) ? 'num' : 'text' };
   });
-}
-
-/**
- * The column that carries "Incomplete" (FR-HIS-04): Average when default-visible, else the first default-visible
- * column after the pinned ones. Chosen without showAll, so the marker stays put when the toggle changes.
- * @param {HistoryColumnVM[]} columns
- * @returns {number}  index, or -1
- */
-function incompleteColumn(columns) {
-  const shown = columns.filter((c) => !c.pinned && !c.defaultHidden);
-  const target = shown.find((c) => c.id === 'average') ?? shown[0] ?? columns.find((c) => !c.pinned);
-  return target ? columns.indexOf(target) : -1;
 }
 
 /**
@@ -185,7 +173,6 @@ function removeAllVm(n) {
  */
 export function historyViewModel({ records, category, settings, today, showAll }) {
   const columns = historyColumnVms(category, showAll);
-  const marker = incompleteColumn(columns);
   const ctxs = buildContexts(/** @type {DayRecord[]} */ (records), category);   // over all records (CC-19 rev 1)
   /** @type {Map<IsoDate, HistoryGapVM[]>} */
   const gapsAfter = new Map();
@@ -197,11 +184,9 @@ export function historyViewModel({ records, category, settings, today, showAll }
     const ctx = ctxs[i];
     const incomplete = !ctx.derived.complete;
     const cells = category.historyColumns.map((col) => cellVm(col, ctx));
-    if (incomplete && marker >= 0) {
-      const c = cells[marker];
-      cells[marker] = c.text === BLANK ? { ...c, text: INCOMPLETE_TEXT } : { ...c, note: c.note || INCOMPLETE_TEXT };
-    }
-    const badges = (category.dayBadges?.(ctx) ?? []).map((b) => ({ id: b.id, text: b.text, warning: b.tone === 'warning' }));
+    // FR-HIS-04: an "Incomplete" badge under the date, so the derived cells stay '—' and no column widens.
+    const badges = [...(incomplete ? [{ id: 'incomplete', text: INCOMPLETE_TEXT, warning: false }] : []),
+      ...(category.dayBadges?.(ctx) ?? []).map((b) => ({ id: b.id, text: b.text, warning: b.tone === 'warning' }))];
     const date = ctx.record.date;
     rows.push({
       kind: 'record', key: date, href: `#entry/${date}`, cells, badges, incomplete,

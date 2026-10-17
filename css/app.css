@@ -1023,8 +1023,11 @@ table.history tr.is-off > td {
 
 table.history tr.is-incomplete > td:not(.pin) {
   color: var(--c-muted);
+}
+
+.row-badges .badge-incomplete {
+  color: var(--c-muted);
   font-style: italic;
-  font-size: 0.75rem;               /* "Incomplete" must not widen the Average column */
 }
 
 table.history tr.gap-row > td {

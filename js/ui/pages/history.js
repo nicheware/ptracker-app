@@ -108,7 +108,7 @@ export function createHistoryPage(deps) {
         cell.note ? el('span', { class: 'cell-note', text: cell.note }) : null,
         i === link && item.badges.length > 0
           ? el('span', { class: 'row-badges' }, ...item.badges.map((b) =>
-            el('span', { class: `badge${b.warning ? ' tone-warning' : ''}`, text: b.text })))
+            el('span', { class: `badge badge-${b.id}${b.warning ? ' tone-warning' : ''}`, text: b.text })))
           : null);
     }));
   }
